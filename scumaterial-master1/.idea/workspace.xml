@@ -1,0 +1,479 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="d3edbdfe-7b8e-4d68-9612-65ae5c134089" name="更改" comment="实现 上传模板数据时，数据状态status字段为未审核" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Enum" />
+        <option value="mybatis-mapper" />
+        <option value="Class" />
+        <option value="Interface" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;duoladeAmeng&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;git@github.com:duoladeAmeng/scumaterial.git&quot;,
+    &quot;accountId&quot;: &quot;10ff3dd3-cc28-4409-a5f7-7440c2eb238b&quot;
+  }
+}</component>
+  <component name="MavenImportPreferences">
+    <option name="generalSettings">
+      <MavenGeneralSettings>
+        <option name="localRepository" value="D:\MyApplication\apache-maven-3.9.11\localresp" />
+        <option name="useMavenConfig" value="false" />
+        <option name="userSettingsFile" value="D:\MyApplication\apache-maven-3.9.11\conf\settings.xml" />
+      </MavenGeneralSettings>
+    </option>
+  </component>
+  <component name="ProjectCodeStyleSettingsMigration">
+    <option name="version" value="2" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 8
+}</component>
+  <component name="ProjectId" id="36sjLKjpcy9AGU0CrDjJ5zWuhX7" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;JUnit.TestMap.test.executor&quot;: &quot;Run&quot;,
+    &quot;JUnit.TestMongo.test.executor&quot;: &quot;Run&quot;,
+    &quot;JUnit.TestTemplateCategory.executor&quot;: &quot;Run&quot;,
+    &quot;JUnit.TestTemplateCategory.testInsert.executor&quot;: &quot;Run&quot;,
+    &quot;JUnit.TestTemplateData.testSELECT.executor&quot;: &quot;Run&quot;,
+    &quot;JUnit.TestTemplateFieldDataType.testInsert.executor&quot;: &quot;Run&quot;,
+    &quot;Maven.MaterialPlatform [clean,install].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.MaterialPlatform [clean].executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
+    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
+    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
+    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;Spring Boot.MaterialPlatformApplication.executor&quot;: &quot;Run&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;F:/project1/scumaterial-master1&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;onboarding.tips.debug.path&quot;: &quot;E:/MyMindHive/MyProjects/MaterialSCU/MaterialPlatform/common/src/main/java/com/scu/Main.java&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;项目&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.lookFeel&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  },
+  &quot;keyToStringList&quot;: {
+    &quot;DatabaseDriversLRU&quot;: [
+      &quot;mysql&quot;
+    ]
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="E:\MyMindHive\MyProjects\MaterialSCU\MaterialPlatform\server\src\main\java\com\scu" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Spring Boot.MaterialPlatformApplication">
+    <configuration name="TestMap.test" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="server" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.scu.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="com.scu" />
+      <option name="MAIN_CLASS_NAME" value="com.scu.TestMap" />
+      <option name="METHOD_NAME" value="test" />
+      <option name="TEST_OBJECT" value="method" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="TestMongo.test" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="server" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.scu.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="com.scu" />
+      <option name="MAIN_CLASS_NAME" value="com.scu.TestMongo" />
+      <option name="METHOD_NAME" value="test" />
+      <option name="TEST_OBJECT" value="method" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="TestTemplateData.testSELECT" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="server" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.scu.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="com.scu" />
+      <option name="MAIN_CLASS_NAME" value="com.scu.TestTemplateData" />
+      <option name="METHOD_NAME" value="testSELECT" />
+      <option name="TEST_OBJECT" value="method" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="TestTemplateFieldDataType.testInsert" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="server" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.scu.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="com.scu" />
+      <option name="MAIN_CLASS_NAME" value="com.scu.TestTemplateFieldDataType" />
+      <option name="METHOD_NAME" value="testInsert" />
+      <option name="TEST_OBJECT" value="method" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="MaterialPlatformApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" temporary="true" nameIsGenerated="true">
+      <module name="server" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="com.scu.MaterialPlatformApplication" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.scu.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Spring Boot.MaterialPlatformApplication" />
+        <item itemvalue="JUnit.TestTemplateData.testSELECT" />
+        <item itemvalue="JUnit.TestMap.test" />
+        <item itemvalue="JUnit.TestMongo.test" />
+        <item itemvalue="JUnit.TestTemplateFieldDataType.testInsert" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.25557.131" />
+        <option value="bundled-js-predefined-d6986cc7102b-b598e85cdad2-JavaScript-IU-252.25557.131" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="StructureViewState">
+    <option name="selectedTab" value="实体" />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="默认任务">
+      <changelist id="d3edbdfe-7b8e-4d68-9612-65ae5c134089" name="更改" comment="" />
+      <created>1765802117201</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1765802117201</updated>
+      <workItem from="1765802118512" duration="5260000" />
+      <workItem from="1765815185519" duration="4154000" />
+      <workItem from="1765864471460" duration="13946000" />
+      <workItem from="1765948674502" duration="13357000" />
+      <workItem from="1765971165759" duration="10167000" />
+      <workItem from="1766028598411" duration="16460000" />
+      <workItem from="1766399630576" duration="11955000" />
+      <workItem from="1766461240356" duration="1531000" />
+      <workItem from="1766556372391" duration="1369000" />
+      <workItem from="1766565755544" duration="5700000" />
+      <workItem from="1766575485063" duration="9744000" />
+      <workItem from="1766591510470" duration="2183000" />
+      <workItem from="1766630791363" duration="7021000" />
+      <workItem from="1766664402795" duration="3227000" />
+      <workItem from="1766817109374" duration="3612000" />
+      <workItem from="1766986263262" duration="9028000" />
+      <workItem from="1767007325651" duration="4691000" />
+      <workItem from="1767012217630" duration="2714000" />
+      <workItem from="1767578564484" duration="4070000" />
+      <workItem from="1767781192191" duration="8885000" />
+      <workItem from="1767941031109" duration="5865000" />
+      <workItem from="1767946998062" duration="306000" />
+      <workItem from="1770099284837" duration="842000" />
+      <workItem from="1770194603055" duration="39000" />
+      <workItem from="1770196251338" duration="17000" />
+      <workItem from="1770196648095" duration="39000" />
+    </task>
+    <task id="LOCAL-00001" summary="实现 根据模板分类获取模板 和 创建模板">
+      <option name="closed" value="true" />
+      <created>1765865473172</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1765865473172</updated>
+    </task>
+    <task id="LOCAL-00002" summary="更正创建模板的业务逻辑">
+      <option name="closed" value="true" />
+      <created>1765875540688</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1765875540688</updated>
+    </task>
+    <task id="LOCAL-00003" summary="实现新建模板的业务">
+      <option name="closed" value="true" />
+      <created>1765956083661</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1765956083661</updated>
+    </task>
+    <task id="LOCAL-00004" summary="实现新建模板的业务">
+      <option name="closed" value="true" />
+      <created>1765958915839</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1765958915839</updated>
+    </task>
+    <task id="LOCAL-00005" summary="实现模板对应excel文件导出">
+      <option name="closed" value="true" />
+      <created>1765973529849</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1765973529849</updated>
+    </task>
+    <task id="LOCAL-00006" summary="实现获取所有待审核模板">
+      <option name="closed" value="true" />
+      <created>1765975006421</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1765975006421</updated>
+    </task>
+    <task id="LOCAL-00007" summary="实现 添加单条模板数据">
+      <option name="closed" value="true" />
+      <created>1765980026102</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1765980026102</updated>
+    </task>
+    <task id="LOCAL-00008" summary="实现 根据模板分类获取模板详细信息">
+      <option name="closed" value="true" />
+      <created>1766029426307</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1766029426307</updated>
+    </task>
+    <task id="LOCAL-00009" summary="实现 根据用户名(模板创建者)获取模板详细信息">
+      <option name="closed" value="true" />
+      <created>1766039456298</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1766039456298</updated>
+    </task>
+    <task id="LOCAL-00010" summary="实现 批量上传模板数据">
+      <option name="closed" value="true" />
+      <created>1766041943973</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1766041943973</updated>
+    </task>
+    <task id="LOCAL-00011" summary="实现 获取模板分类功能">
+      <option name="closed" value="true" />
+      <created>1766042936448</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1766042936448</updated>
+    </task>
+    <task id="LOCAL-00012" summary="更正 获取用户所有模板 返回信息添加审核意见">
+      <option name="closed" value="true" />
+      <created>1766044540995</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1766044540995</updated>
+    </task>
+    <task id="LOCAL-00013" summary="修复 添加审核日志没有日期的问题">
+      <option name="closed" value="true" />
+      <created>1766044731857</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1766044731857</updated>
+    </task>
+    <task id="LOCAL-00014" summary="实现 删除模板功能">
+      <option name="closed" value="true" />
+      <created>1766046023421</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1766046023421</updated>
+    </task>
+    <task id="LOCAL-00015" summary="实现 模板字段数据类型接口">
+      <option name="closed" value="true" />
+      <created>1766048217435</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1766048217435</updated>
+    </task>
+    <task id="LOCAL-00016" summary="实现 新建模板请求特殊处理枚举类型">
+      <option name="closed" value="true" />
+      <created>1766404490059</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1766404490059</updated>
+    </task>
+    <task id="LOCAL-00017" summary="实现 实际创建模板对应表时枚举字段的处理">
+      <option name="closed" value="true" />
+      <created>1766406805082</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1766406805082</updated>
+    </task>
+    <task id="LOCAL-00018" summary="实现 实际上传模板数据时对应表时枚举字段的处理">
+      <option name="closed" value="true" />
+      <created>1766410200217</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1766410200217</updated>
+    </task>
+    <task id="LOCAL-00019" summary="更正 模板审核判断逻辑为：有结果字段，但是操作字段或对象字段为空，则抛出异常">
+      <option name="closed" value="true" />
+      <created>1766557046797</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1766557046798</updated>
+    </task>
+    <task id="LOCAL-00020" summary="实现 带有文件的模板数据批量上传">
+      <option name="closed" value="true" />
+      <created>1766591559148</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1766591559149</updated>
+    </task>
+    <task id="LOCAL-00021" summary="修复bug 批量上传时枚举类型字段查询逻辑有误">
+      <option name="closed" value="true" />
+      <created>1766593591598</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1766593591598</updated>
+    </task>
+    <task id="LOCAL-00022" summary="修复bug 批量上传时枚举类型字段查询逻辑有误">
+      <option name="closed" value="true" />
+      <created>1766647953610</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1766647953610</updated>
+    </task>
+    <task id="LOCAL-00023" summary="实现 文件上传计算文件哈希，同样文件(即使名称不同)只存一份">
+      <option name="closed" value="true" />
+      <created>1766666639534</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1766666639534</updated>
+    </task>
+    <task id="LOCAL-00024" summary="更正 创建模板的逻辑改为可以只有结果字段">
+      <option name="closed" value="true" />
+      <created>1766987542838</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1766987542838</updated>
+    </task>
+    <task id="LOCAL-00025" summary="实现 审核通过模板，创建表时添加数据状态status字段">
+      <option name="closed" value="true" />
+      <created>1766988761473</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1766988761473</updated>
+    </task>
+    <task id="LOCAL-00026" summary="实现 上传模板数据时，数据状态status字段为未审核">
+      <option name="closed" value="true" />
+      <created>1766989011759</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1766989011759</updated>
+    </task>
+    <option name="localTasksCounter" value="27" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="更正创建模板的业务逻辑" />
+    <MESSAGE value="实现新建模板的业务" />
+    <MESSAGE value="实现模板对应excel文件导出" />
+    <MESSAGE value="实现获取所有待审核模板" />
+    <MESSAGE value="修正 获取所有待审核模板 返回结果：要包含模板字段名" />
+    <MESSAGE value="实现 添加单条模板数据" />
+    <MESSAGE value="实现 根据模板分类获取模板详细信息" />
+    <MESSAGE value="实现 根据用户名(模板创建者)获取模板详细信息" />
+    <MESSAGE value="实现 批量上传模板数据" />
+    <MESSAGE value="实现 获取模板分类功能" />
+    <MESSAGE value="更正 获取用户所有模板 返回信息添加审核意见" />
+    <MESSAGE value="修复 添加审核日志没有日期的问题" />
+    <MESSAGE value="实现 删除模板功能" />
+    <MESSAGE value="实现 模板字段数据类型接口" />
+    <MESSAGE value="实现 新建模板请求特殊处理枚举类型" />
+    <MESSAGE value="实现 实际创建模板对应表时枚举字段的处理" />
+    <MESSAGE value="实现 实际上传模板数据时对应表时枚举字段的处理" />
+    <MESSAGE value="更正 模板审核判断逻辑为：有结果字段，但是操作字段或对象字段为空，则抛出异常" />
+    <MESSAGE value="实现 带有文件的模板数据上传" />
+    <MESSAGE value="实现 带有文件的模板数据批量上传" />
+    <MESSAGE value="修复bug 批量上传时枚举类型字段查询逻辑有误" />
+    <MESSAGE value="实现 文件上传计算文件哈希，同样文件(即使名称不同)只存一份" />
+    <MESSAGE value="更正 创建模板的逻辑改为可以只有结果字段" />
+    <MESSAGE value="实现 审核通过模板，创建表时添加数据状态status字段" />
+    <MESSAGE value="实现 上传模板数据时，数据状态status字段为未审核" />
+    <option name="LAST_COMMIT_MESSAGE" value="实现 上传模板数据时，数据状态status字段为未审核" />
+  </component>
+</project>

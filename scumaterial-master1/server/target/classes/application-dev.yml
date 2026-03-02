@@ -1,0 +1,14 @@
+dyc:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    host: localhost
+    port: 3306
+    database: material_database
+    username: root
+    password: a489732962
+  mongodb:
+    uri: mongodb://mongo:mongo@192.168.25.10:30213/test?authSource=admin
+    database: test
+    host: 192.168.25.10
+    port: 30213
