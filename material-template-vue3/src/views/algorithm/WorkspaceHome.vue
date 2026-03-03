@@ -334,79 +334,288 @@
               
               <el-divider>参数配置</el-divider>
               
-              <!-- 数据源节点 -->
-              <template v-if="selectedNode.properties.nodeType === 'data-source'">
-                <el-form-item label="数据源类型">
-                  <el-select v-model="selectedNode.properties.sourceType" style="width: 100%">
-                    <el-option label="模板数据" value="template" />
-                    <el-option label="上传文件" value="file" />
-                    <el-option label="数据库" value="database" />
+              <!-- ── 数据集节点（从侧边栏拖入）── -->
+              <template v-if="selectedNode.properties.nodeType === 'dataset-node'">
+                <el-form-item label="关联数据集">
+                  <el-select
+                    v-model="selectedNode.properties.datasetId"
+                    style="width:100%"
+                    placeholder="请选择数据集"
+                    @change="onDatasetNodeChange"
+                  >
+                    <el-option
+                      v-for="ds in datasets"
+                      :key="ds.id"
+                      :label="ds.name"
+                      :value="ds.id"
+                    />
                   </el-select>
                 </el-form-item>
-                <el-form-item label="选择模板" v-if="selectedNode.properties.sourceType === 'template'">
-                  <el-select v-model="selectedNode.properties.templateId" style="width: 100%" placeholder="请选择">
-                    <el-option label="材料基础信息模板" value="1" />
-                    <el-option label="力学性能测试模板" value="2" />
-                    <el-option label="生物相容性模板" value="3" />
+                <template v-if="selectedNode.properties.columns?.length">
+                  <el-form-item label="字段列表">
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+                      <el-tag
+                        v-for="col in selectedNode.properties.columns"
+                        :key="col.name"
+                        size="small"
+                        type="info"
+                      >
+                        {{ col.name }}<span style="opacity:0.6;margin-left:2px">({{ col.dtype }})</span>
+                      </el-tag>
+                    </div>
+                  </el-form-item>
+                  <el-form-item label="数据规模">
+                    <span style="color:rgba(255,255,255,0.6)">{{ selectedNode.properties.rowCount }} 行 × {{ selectedNode.properties.columns.length }} 列</span>
+                  </el-form-item>
+                </template>
+                <el-empty v-else description="请在左侧上传数据集后选择" :image-size="50" />
+              </template>
+
+              <!-- ── 选择列节点 ── -->
+              <template v-if="selectedNode.properties.nodeType === 'column-select'">
+                <el-form-item label="任务类型">
+                  <el-radio-group v-model="selectedNode.properties.taskType" @change="updateNodeProperty">
+                    <el-radio-button value="classification">分类</el-radio-button>
+                    <el-radio-button value="regression">回归</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="目标列（预测值）">
+                  <el-select
+                    v-model="selectedNode.properties.targetCol"
+                    style="width:100%"
+                    placeholder="请选择目标列"
+                    @change="updateNodeProperty"
+                  >
+                    <el-option
+                      v-for="col in upstreamColumns"
+                      :key="col.value"
+                      :label="col.label"
+                      :value="col.value"
+                    />
                   </el-select>
                 </el-form-item>
-              </template>
-              
-              <!-- 数据处理节点 -->
-              <template v-if="selectedNode.properties.nodeType === 'data-clean'">
-                <el-form-item label="清洗规则">
-                  <el-checkbox-group v-model="selectedNode.properties.cleanRules">
-                    <el-checkbox label="remove-null">移除空值</el-checkbox>
-                    <el-checkbox label="remove-duplicate">移除重复</el-checkbox>
-                    <el-checkbox label="fix-format">修复格式</el-checkbox>
-                  </el-checkbox-group>
-                </el-form-item>
-              </template>
-              
-              <!-- 数据转换节点 -->
-              <template v-if="selectedNode.properties.nodeType === 'data-transform'">
-                <el-form-item label="转换操作">
-                  <el-select v-model="selectedNode.properties.operation" style="width: 100%">
-                    <el-option label="字段映射" value="mapping" />
-                    <el-option label="数据聚合" value="aggregate" />
-                    <el-option label="数据拆分" value="split" />
-                    <el-option label="格式转换" value="format" />
+                <el-form-item label="特征列（输入变量）">
+                  <el-select
+                    v-model="selectedNode.properties.featureCols"
+                    style="width:100%"
+                    multiple
+                    placeholder="请选择特征列（可多选）"
+                    @change="updateNodeProperty"
+                  >
+                    <el-option
+                      v-for="col in upstreamColumns"
+                      :key="col.value"
+                      :label="col.label"
+                      :value="col.value"
+                    />
                   </el-select>
                 </el-form-item>
+                <el-button
+                  type="primary"
+                  style="width:100%;margin-bottom:12px"
+                  :loading="nodeState.status === 'running'"
+                  @click="runFeatureSelect"
+                >
+                  确认选择并预览
+                </el-button>
+                <el-alert v-if="nodeState.error" :title="nodeState.error" type="error" :closable="false" show-icon />
+                <template v-if="nodeState.result">
+                  <el-divider>数据预览</el-divider>
+                  <el-descriptions :column="1" size="small" border>
+                    <el-descriptions-item label="有效行数">{{ nodeState.result.row_count }}</el-descriptions-item>
+                    <el-descriptions-item
+                      v-if="nodeState.result.target_info?.distribution"
+                      label="类别分布"
+                    >
+                      <span
+                        v-for="(cnt, cls) in nodeState.result.target_info.distribution"
+                        :key="cls"
+                        style="margin-right:8px"
+                      >
+                        {{ cls }}: {{ cnt }}
+                      </span>
+                    </el-descriptions-item>
+                    <el-descriptions-item
+                      v-if="nodeState.result.target_info?.mean !== undefined"
+                      label="目标均值"
+                    >
+                      {{ nodeState.result.target_info.mean }}
+                    </el-descriptions-item>
+                  </el-descriptions>
+                  <el-table
+                    :data="nodeState.result.preview"
+                    size="small"
+                    style="margin-top:8px"
+                    max-height="200"
+                  >
+                    <el-table-column
+                      v-for="col in selectedNode.properties.featureCols?.slice(0,4)"
+                      :key="col"
+                      :prop="col"
+                      :label="col"
+                      min-width="80"
+                    />
+                    <el-table-column
+                      :prop="selectedNode.properties.targetCol"
+                      :label="selectedNode.properties.targetCol"
+                      min-width="80"
+                    />
+                  </el-table>
+                </template>
               </template>
-              
-              <!-- 机器学习节点 -->
-              <template v-if="selectedNode.properties.nodeType === 'ml-model'">
-                <el-form-item label="模型类型">
-                  <el-select v-model="selectedNode.properties.modelType" style="width: 100%">
-                    <el-option label="线性回归" value="linear" />
-                    <el-option label="随机森林" value="random-forest" />
-                    <el-option label="神经网络" value="neural-network" />
-                    <el-option label="支持向量机" value="svm" />
-                    <el-option label="XGBoost" value="xgboost" />
+
+              <!-- ── 模型训练节点 ── -->
+              <template v-if="selectedNode.properties.nodeType === 'model-train'">
+                <el-form-item label="当前模型">
+                  <span style="color:rgba(255,255,255,0.8);font-size:14px">
+                    {{ selectedNode.properties.taskType === 'classification' ? '随机森林（分类）' : selectedNode.properties.taskType === 'regression' ? '线性回归（回归）' : '请先在上游选择列节点设置任务类型' }}
+                  </span>
+                </el-form-item>
+
+                <el-form-item label="测试集比例">
+                  <el-slider
+                    v-model="selectedNode.properties.testSize"
+                    :min="0.1" :max="0.4" :step="0.05"
+                    :format-tooltip="v => (v * 100).toFixed(0) + '%'"
+                    show-input
+                    style="padding:0 8px"
+                  />
+                </el-form-item>
+
+                <el-button
+                  type="primary"
+                  style="width:100%;margin-bottom:12px"
+                  :loading="nodeState.status === 'running'"
+                  @click="runTraining"
+                >
+                  {{ nodeState.status === 'running' ? '训练中...' : '开始训练' }}
+                </el-button>
+
+                <el-alert v-if="nodeState.error" :title="nodeState.error" type="error" :closable="false" show-icon />
+
+                <template v-if="nodeState.result?.test_metrics">
+                  <el-divider>训练结果</el-divider>
+                  <el-descriptions :column="2" size="small" border>
+                    <template v-if="nodeState.result.task_type === 'classification'">
+                      <el-descriptions-item label="训练集准确率">
+                        {{ (nodeState.result.train_metrics.accuracy * 100).toFixed(1) }}%
+                      </el-descriptions-item>
+                      <el-descriptions-item label="测试集准确率">
+                        {{ (nodeState.result.test_metrics.accuracy * 100).toFixed(1) }}%
+                      </el-descriptions-item>
+                      <el-descriptions-item label="训练集 F1">
+                        {{ nodeState.result.train_metrics.f1_weighted }}
+                      </el-descriptions-item>
+                      <el-descriptions-item label="测试集 F1">
+                        {{ nodeState.result.test_metrics.f1_weighted }}
+                      </el-descriptions-item>
+                    </template>
+                    <template v-else>
+                      <el-descriptions-item label="测试集 R²">{{ nodeState.result.test_metrics.r2 }}</el-descriptions-item>
+                      <el-descriptions-item label="测试集 RMSE">{{ nodeState.result.test_metrics.rmse }}</el-descriptions-item>
+                      <el-descriptions-item label="测试集 MAE">{{ nodeState.result.test_metrics.mae }}</el-descriptions-item>
+                      <el-descriptions-item label="训练集 R²">{{ nodeState.result.train_metrics.r2 }}</el-descriptions-item>
+                    </template>
+                    <el-descriptions-item label="训练样本">{{ nodeState.result.train_size }}</el-descriptions-item>
+                    <el-descriptions-item label="测试样本">{{ nodeState.result.test_size }}</el-descriptions-item>
+                    <el-descriptions-item label="训练耗时">{{ nodeState.result.training_time_ms }} ms</el-descriptions-item>
+                  </el-descriptions>
+                  <el-alert
+                    v-for="(w, wi) in (nodeState.result.warnings || [])"
+                    :key="wi"
+                    :title="w"
+                    type="warning"
+                    :closable="false"
+                    show-icon
+                    style="margin-top:8px"
+                  />
+                </template>
+              </template>
+
+              <!-- ── 结果可视化节点 ── -->
+              <template v-if="selectedNode.properties.nodeType === 'result-viz'">
+                <el-form-item label="图表类型">
+                  <el-select
+                    v-model="selectedNode.properties.chartType"
+                    style="width:100%"
+                    @change="updateNodeProperty"
+                  >
+                    <el-option label="混淆矩阵" value="confusion_matrix" />
+                    <el-option label="ROC 曲线" value="roc" />
+                    <el-option label="特征重要性" value="feature_importance" />
+                    <el-option label="残差图" value="residuals" />
                   </el-select>
                 </el-form-item>
-                <el-form-item label="训练轮次">
-                  <el-input-number v-model="selectedNode.properties.epochs" :min="1" :max="1000" style="width: 100%" />
-                </el-form-item>
-                <el-form-item label="学习率">
-                  <el-input-number v-model="selectedNode.properties.learningRate" :min="0.0001" :max="1" :step="0.001" :precision="4" style="width: 100%" />
-                </el-form-item>
+                <el-button
+                  type="primary"
+                  style="width:100%;margin-bottom:12px"
+                  :loading="isChartLoading"
+                  @click="loadChart"
+                >
+                  生成图表
+                </el-button>
+                <el-alert v-if="nodeState.error" :title="nodeState.error" type="error" :closable="false" show-icon />
+                <div
+                  ref="chartDomRef"
+                  style="height:300px;border-radius:8px;overflow:hidden;background:rgba(15,23,42,0.6)"
+                />
               </template>
-              
-              <!-- 输出节点 -->
-              <template v-if="selectedNode.properties.nodeType === 'data-output'">
-                <el-form-item label="输出格式">
-                  <el-select v-model="selectedNode.properties.format" style="width: 100%">
-                    <el-option label="JSON" value="json" />
-                    <el-option label="CSV" value="csv" />
-                    <el-option label="Excel" value="excel" />
+
+              <!-- ── 模型预测节点 ── -->
+              <template v-if="selectedNode.properties.nodeType === 'model-predict'">
+                <el-form-item label="选择预测数据集">
+                  <el-select
+                    v-model="selectedNode.properties.predictDatasetId"
+                    style="width:100%"
+                    placeholder="选择已上传的数据集"
+                    clearable
+                    @change="updateNodeProperty"
+                  >
+                    <el-option
+                      v-for="ds in datasets"
+                      :key="ds.id"
+                      :label="ds.name"
+                      :value="ds.files.find(f=>f.datasetServerId)?.datasetServerId"
+                    />
                   </el-select>
                 </el-form-item>
-                <el-form-item label="文件名">
-                  <el-input v-model="selectedNode.properties.fileName" placeholder="输出文件名" />
+                <el-form-item label="或手动输入 JSON">
+                  <el-input
+                    v-model="selectedNode.properties.manualInput"
+                    type="textarea"
+                    :rows="4"
+                    placeholder='[{"col1": 0.5, "col2": 100}]'
+                    @change="updateNodeProperty"
+                  />
                 </el-form-item>
+                <el-button
+                  type="primary"
+                  style="width:100%;margin-bottom:12px"
+                  :loading="nodeState.status === 'running'"
+                  @click="runPredict"
+                >
+                  执行预测
+                </el-button>
+                <el-alert v-if="nodeState.error" :title="nodeState.error" type="error" :closable="false" show-icon />
+                <template v-if="nodeState.result?.predictions">
+                  <el-divider>预测结果</el-divider>
+                  <div style="max-height:200px;overflow-y:auto">
+                    <el-tag
+                      v-for="(p, i) in nodeState.result.predictions.slice(0,50)"
+                      :key="i"
+                      size="small"
+                      type="success"
+                      style="margin:2px"
+                    >
+                      {{ p }}
+                    </el-tag>
+                    <div v-if="nodeState.result.predictions.length > 50" style="color:rgba(255,255,255,0.4);font-size:0.75rem;margin-top:4px">
+                      仅显示前 50 条，共 {{ nodeState.result.predictions.length }} 条
+                    </div>
+                  </div>
+                </template>
               </template>
+
             </el-form>
           </el-scrollbar>
         </template>
@@ -517,17 +726,23 @@ import { useUserStore } from '@/stores/user'
 import {
   Plus, RefreshLeft, RefreshRight, ZoomIn, ZoomOut, FullScreen,
   Download, VideoPlay, Check, Close, Select, MoreFilled, Edit,
-  CopyDocument, Delete, Connection, HomeFilled, ArrowLeft,
+  CopyDocument, Delete, Connection, HomeFilled,
   // 组件图标
-  Folder, Document, DataLine, DataBoard, DataAnalysis,
-  Filter, Operation, ScaleToOriginal, Coin, SetUp,
-  Cpu, TrendCharts, MagicStick, Histogram, PieChart,
-  Upload, Box, CircleCheck, Bell, Grid, FolderOpened, View
+  Folder, Document, SetUp,
+  Cpu, TrendCharts, MagicStick, Histogram,
+  Upload, Grid, FolderOpened, View
 } from '@element-plus/icons-vue'
-import axios from 'axios'
+import { useMlWorkflowStore } from '@/stores/mlWorkflow'
+import { mlApi, getSessionId } from '@/utils/mlApi'
 
 const router = useRouter()
 const userStore = useUserStore()
+const mlStore = useMlWorkflowStore()
+
+// ECharts state
+const chartDomRef = ref(null)
+let chartInstance = null
+let beforeUnloadHandler = null
 
 // Refs
 const canvasRef = ref(null)
@@ -548,7 +763,7 @@ const showMinimap = ref(false)
 const showCreateDialog = ref(false)
 const showRunDrawer = ref(false)
 const runSteps = ref([])
-const activeComponents = ref(['comp-datasource', 'comp-process']) // 默认展开的分类
+const activeComponents = ref(['comp-ml']) // 默认展开ML工作流分类
 
 const newWorkflowForm = reactive({
   name: '',
@@ -574,58 +789,15 @@ const workflows = ref([])
 // 组件定义
 const componentItems = [
   {
-    id: 'comp-datasource',
-    label: '数据源',
-    icon: markRaw(Folder),
-    isCategory: true,
-    children: [
-      { id: 'data-source', label: '数据输入', icon: markRaw(Document), isComponent: true, color: '#667eea', description: '从模板或文件读取数据' },
-      { id: 'database-query', label: '数据库查询', icon: markRaw(DataBoard), isComponent: true, color: '#06b6d4', description: '从数据库查询数据' },
-      { id: 'api-fetch', label: 'API数据', icon: markRaw(DataLine), isComponent: true, color: '#8b5cf6', description: '从API接口获取数据' }
-    ]
-  },
-  {
-    id: 'comp-process',
-    label: '数据处理',
-    icon: markRaw(Operation),
-    isCategory: true,
-    children: [
-      { id: 'data-clean', label: '数据清洗', icon: markRaw(Filter), isComponent: true, color: '#10b981', description: '清理缺失值和异常值' },
-      { id: 'data-transform', label: '数据转换', icon: markRaw(ScaleToOriginal), isComponent: true, color: '#f59e0b', description: '转换数据格式和结构' },
-      { id: 'data-filter', label: '数据过滤', icon: markRaw(Filter), isComponent: true, color: '#ec4899', description: '按条件筛选数据' },
-      { id: 'data-merge', label: '数据合并', icon: markRaw(Coin), isComponent: true, color: '#ef4444', description: '合并多个数据源' }
-    ]
-  },
-  {
-    id: 'comp-algorithm',
-    label: '算法模型',
+    id: 'comp-ml',
+    label: 'ML 工作流',
     icon: markRaw(Cpu),
     isCategory: true,
     children: [
-      { id: 'feature-extract', label: '特征工程', icon: markRaw(SetUp), isComponent: true, color: '#14b8a6', description: '提取和选择特征' },
-      { id: 'ml-model', label: '机器学习', icon: markRaw(TrendCharts), isComponent: true, color: '#667eea', description: '训练机器学习模型' },
+      { id: 'column-select', label: '选择列', icon: markRaw(SetUp), isComponent: true, color: '#14b8a6', description: '选择特征列和目标列' },
+      { id: 'model-train', label: '模型训练', icon: markRaw(TrendCharts), isComponent: true, color: '#667eea', description: '训练机器学习模型' },
+      { id: 'result-viz', label: '结果可视化', icon: markRaw(Histogram), isComponent: true, color: '#f97316', description: '可视化训练结果' },
       { id: 'model-predict', label: '模型预测', icon: markRaw(MagicStick), isComponent: true, color: '#6366f1', description: '使用模型进行预测' }
-    ]
-  },
-  {
-    id: 'comp-visual',
-    label: '可视化',
-    icon: markRaw(PieChart),
-    isCategory: true,
-    children: [
-      { id: 'chart-bindata', label: '图表展示', icon: markRaw(Histogram), isComponent: true, color: '#f97316', description: '生成数据可视化图表' },
-      { id: 'report-gen', label: '报告生成', icon: markRaw(Document), isComponent: true, color: '#84cc16', description: '生成分析报告' }
-    ]
-  },
-  {
-    id: 'comp-output',
-    label: '输出',
-    icon: markRaw(Upload),
-    isCategory: true,
-    children: [
-      { id: 'data-output', label: '数据导出', icon: markRaw(Download), isComponent: true, color: '#0ea5e9', description: '导出处理后的数据' },
-      { id: 'data-save', label: '数据保存', icon: markRaw(Box), isComponent: true, color: '#a855f7', description: '保存到数据库' },
-      { id: 'notify', label: '通知', icon: markRaw(Bell), isComponent: true, color: '#22c55e', description: '发送完成通知' }
     ]
   }
 ]
@@ -725,30 +897,27 @@ const initLogicFlow = async () => {
     const { SelectionSelect, Menu, Snapshot } = await import('@logicflow/extension')
     await import('@logicflow/extension/dist/index.css')
     
-    // 节点图标 SVG 映射
-    const nodeIcons = {
-      'data-source': `<path d="M12 2C6.48 2 2 4.69 2 8v8c0 3.31 4.48 6 10 6s10-2.69 10-6V8c0-3.31-4.48-6-10-6zm0 2c4.42 0 8 1.79 8 4s-3.58 4-8 4-8-1.79-8-4 3.58-4 8-4z"/>`,
-      'data-clean': `<path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/>`,
-      'data-process': `<path d="M14 4l2.29 2.29-2.88 2.88 1.42 1.42 2.88-2.88L20 10V4h-6zm-4 0H4v6l2.29-2.29 4.71 4.7V20h2v-8.41l-5.29-5.3L10 4z"/>`,
-      'feature-eng': `<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>`,
-      'model-train': `<path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>`,
-      'model-eval': `<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>`,
-      'data-export': `<path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>`,
-      'default': `<circle cx="12" cy="12" r="8"/>`
-    }
-    
     // 自定义带颜色的节点
     class ColorNode extends HtmlNode {
       setHtml(rootEl) {
         const { properties } = this.props.model
         const color = properties.color || '#667eea'
         const label = properties.label || '节点'
-        
-        rootEl.innerHTML = `
-          <div class="custom-node" style="border-color: ${color}; background: ${color}">
-            <span class="node-label">${label}</span>
-          </div>
-        `
+
+        // 每次清空并重建，避免重复叠加导致重影
+        rootEl.innerHTML = ''
+
+        const container = document.createElement('div')
+        container.className = 'custom-node'
+        container.style.borderColor = color
+        container.style.background = color
+
+        const labelEl = document.createElement('span')
+        labelEl.className = 'node-label'
+        labelEl.textContent = label
+
+        container.appendChild(labelEl)
+        rootEl.appendChild(container)
       }
     }
     
@@ -757,6 +926,7 @@ const initLogicFlow = async () => {
         this.width = 140
         this.height = 40
         this.text.editable = false
+        this.text.value = ''
       }
       
       getDefaultAnchor() {
@@ -781,36 +951,36 @@ const initLogicFlow = async () => {
         visible: true,
         type: 'dot',
         config: {
-          color: 'rgba(102, 126, 234, 0.2)'
+          color: 'rgba(0, 0, 0, 0.1)'
         }
       },
       background: {
-        backgroundColor: '#0f172a'
+        backgroundColor: '#ffffff'
       },
       keyboard: {
         enabled: true
       },
-      edgeType: 'bezier',
+      edgeType: 'polyline',
       style: {
         rect: {
           radius: 8,
-          stroke: 'rgba(102, 126, 234, 0.6)',
+          stroke: '#667eea',
           strokeWidth: 2
         },
         bezier: {
-          stroke: 'rgba(102, 126, 234, 0.8)',
+          stroke: '#667eea',
           strokeWidth: 2
         },
         polyline: {
-          stroke: 'rgba(102, 126, 234, 0.8)',
+          stroke: '#667eea',
           strokeWidth: 2
         },
         nodeText: {
-          color: '#fff',
+          color: '#333',
           fontSize: 14
         },
         edgeText: {
-          color: '#fff',
+          color: '#333',
           fontSize: 12
         }
       }
@@ -904,15 +1074,41 @@ const initLogicFlow = async () => {
       zoomLevel.value = transform.SCALE_X
     })
     
-    // 监听画布拖放
-    canvasRef.value.addEventListener('drop', onDrop)
-    canvasRef.value.addEventListener('dragover', (e) => e.preventDefault())
-    
     zoomLevel.value = lf.value.getTransform().SCALE_X
+    
+    // 设置拖放事件监听器（延迟执行，确保画布已完全渲染）
+    nextTick(() => {
+      setupDropListeners()
+    })
+    
+    // 监听数据集变化，确保事件监听器始终存在（当上传数据集后可能触发重新渲染）
+    watch(() => datasets.value.length, () => {
+      nextTick(() => {
+        setupDropListeners()
+      })
+    })
     
   } catch (error) {
     console.error('LogicFlow 初始化失败:', error)
     ElMessage.error('工作流编辑器加载失败')
+  }
+}
+
+// 拖放事件处理函数（定义在组件作用域外部，便于清理）
+const handleDragOver = (e) => {
+  e.preventDefault()
+  e.dataTransfer.dropEffect = 'copy'
+}
+
+// 设置拖放事件监听器
+const setupDropListeners = () => {
+  if (canvasRef.value) {
+    // 先移除旧的监听器（如果存在），避免重复绑定
+    canvasRef.value.removeEventListener('drop', onDrop)
+    canvasRef.value.removeEventListener('dragover', handleDragOver)
+    // 重新绑定
+    canvasRef.value.addEventListener('drop', onDrop)
+    canvasRef.value.addEventListener('dragover', handleDragOver)
   }
 }
 
@@ -927,8 +1123,11 @@ const onDrop = (e) => {
   if (!nodeType || !nodeDataStr) return
   
   const nodeData = JSON.parse(nodeDataStr)
-  const { domOverlayPosition } = lf.value.getPointByClient(e.clientX, e.clientY)
-  
+
+  // getPointByClient 返回画布模型坐标，addNode 需要的就是这个坐标系
+  const point = lf.value.getPointByClient(e.clientX, e.clientY)
+  const canvasPos = point.canvasOverlayPosition || { x: point.x, y: point.y }
+
   // 创建带颜色的节点
   const nodeId = 'node_' + Date.now()
   
@@ -937,38 +1136,50 @@ const onDrop = (e) => {
     lf.value.addNode({
       id: nodeId,
       type: 'color-node',
-      x: domOverlayPosition.x,
-      y: domOverlayPosition.y,
+      x: canvasPos.x,
+      y: canvasPos.y,
       properties: {
         nodeType: nodeType,
         label: nodeData.name,
         description: nodeData.description,
         color: nodeData.color,
-        datasetId: nodeData.datasetId
+        datasetId: nodeData.datasetId,
+        datasetServerId: nodeData.datasetServerId || null,
+        columns: nodeData.columns || [],
+        rowCount: nodeData.rowCount || 0
       }
     })
   } else {
+    const defaultProps = {
+      nodeType: nodeType,
+      label: nodeData.name,
+      description: nodeData.description,
+      color: nodeData.color,
+    }
+    // 按节点类型设置合理的默认属性
+    switch (nodeType) {
+      case 'column-select':
+        Object.assign(defaultProps, { taskType: 'classification', targetCol: '', featureCols: [], selectionId: null })
+        break
+      case 'model-train':
+        Object.assign(defaultProps, {
+          testSize: 0.2,
+          modelId: null, taskType: null,
+        })
+        break
+      case 'result-viz':
+        Object.assign(defaultProps, { chartType: 'confusion_matrix' })
+        break
+      case 'model-predict':
+        Object.assign(defaultProps, { predictDatasetId: null, manualInput: '' })
+        break
+    }
     lf.value.addNode({
       id: nodeId,
       type: 'color-node',
-      x: domOverlayPosition.x,
-      y: domOverlayPosition.y,
-      properties: {
-        nodeType: nodeType,
-        label: nodeData.name,
-        description: nodeData.description,
-        color: nodeData.color,
-        // 默认属性
-        sourceType: 'template',
-        templateId: '',
-        cleanRules: [],
-        operation: 'mapping',
-        modelType: 'linear',
-        epochs: 100,
-        learningRate: 0.001,
-        format: 'json',
-        fileName: 'output'
-      }
+      x: canvasPos.x,
+      y: canvasPos.y,
+      properties: defaultProps,
     })
   }
   
@@ -979,8 +1190,8 @@ const onDrop = (e) => {
 const updateNodeProperty = () => {
   if (selectedNode.value && lf.value) {
     lf.value.setProperties(selectedNode.value.id, selectedNode.value.properties)
-    // 更新节点文本
-    lf.value.updateText(selectedNode.value.id, selectedNode.value.properties.label)
+    // 不调用 updateText —— HtmlNode 的文本由 setHtml 渲染，
+    // updateText 会额外创建原生 SVG 文字层导致重影
     isSaved.value = false
   }
 }
@@ -1104,81 +1315,73 @@ const runWorkflow = async () => {
     ElMessage.warning('请先选择或创建工作流')
     return
   }
-  
-  const graphData = lf.value.getGraphData()
-  const { nodes, edges } = graphData
-  
+
+  const { nodes, edges } = lf.value.getGraphData()
   if (nodes.length === 0) {
     ElMessage.warning('工作流中没有节点')
     return
   }
-  
-  // 查找数据集节点
-  const datasetNodes = nodes.filter(n => n.properties?.nodeType === 'dataset-node')
-  
-  // 检查数据集节点是否有连线
-  const connectedDatasetNodes = datasetNodes.filter(dsNode => {
-    return edges.some(edge => edge.sourceNodeId === dsNode.id || edge.targetNodeId === dsNode.id)
-  })
-  
-  // 显示日志面板
+
+  // ── Kahn 拓扑排序 ──
+  const inDegree = {}
+  const adj = {}
+  for (const n of nodes) { inDegree[n.id] = 0; adj[n.id] = [] }
+  for (const e of edges) {
+    adj[e.sourceNodeId].push(e.targetNodeId)
+    inDegree[e.targetNodeId] = (inDegree[e.targetNodeId] || 0) + 1
+  }
+  const queue = nodes.filter(n => inDegree[n.id] === 0).map(n => n.id)
+  const order = []
+  while (queue.length) {
+    const nid = queue.shift()
+    order.push(nid)
+    for (const next of (adj[nid] || [])) {
+      inDegree[next]--
+      if (inDegree[next] === 0) queue.push(next)
+    }
+  }
+  if (order.length !== nodes.length) {
+    ElMessage.error('工作流中存在环形依赖，无法运行')
+    return
+  }
+
+  // ── 按拓扑顺序依次执行 ──
   showLogPanel.value = true
   clearLogs()
-  
-  addLog('🚀 开始运行工作流...', 'info')
-  addLog(`📋 工作流名称: ${currentWorkflow.value.name}`, 'info')
-  addLog(`📊 节点数: ${nodes.length}, 连线数: ${edges.length}`, 'info')
-  
-  // 如果有已连线的数据集节点，上传文件
-  if (connectedDatasetNodes.length > 0) {
-    addLog(`📂 发现 ${connectedDatasetNodes.length} 个已连接的数据集节点`, 'info')
-    
-    for (const dsNode of connectedDatasetNodes) {
-      const datasetId = dsNode.properties?.datasetId
-      const dataset = datasets.value.find(d => d.id === datasetId)
-      
-      if (dataset) {
-        addLog(`📤 处理数据集: ${dataset.name}`, 'info')
-        await uploadFilesToServer(dataset)
-      } else {
-        addLog(`⚠️ 数据集不存在: ${dsNode.properties?.label}`, 'warning')
+  addLog(`开始运行工作流: ${currentWorkflow.value.name}（${nodes.length} 个节点）`, 'info')
+
+  for (const nodeId of order) {
+    // 每次从画布重新读取节点，确保拿到上游更新后的属性
+    const freshNode = lf.value.getGraphData().nodes.find(n => n.id === nodeId)
+    if (!freshNode) continue
+    selectedNode.value = JSON.parse(JSON.stringify(freshNode))
+    const nodeType = freshNode.properties?.nodeType
+    addLog(`▶ 执行节点: ${freshNode.properties?.label || nodeId}`, 'info')
+
+    try {
+      switch (nodeType) {
+        case 'dataset-node': {
+          if (!freshNode.properties?.datasetServerId) {
+            addLog(`  ⚠ 数据集节点未关联已上传数据，跳过`, 'warning')
+          } else {
+            addLog(`  ✓ 数据集已就绪`, 'success')
+          }
+          break
+        }
+        case 'column-select': await runFeatureSelect(); break
+        case 'model-train':    await runTraining(); break
+        case 'result-viz':     await loadChart(); break
+        case 'model-predict':   await runPredict(); break
+        default:
+          addLog(`  ⏭ 跳过节点: ${nodeType}（无自动执行逻辑）`, 'info')
       }
+    } catch (err) {
+      addLog(`  ✗ 节点执行失败: ${err.message}`, 'error')
     }
-  } else if (datasetNodes.length > 0) {
-    addLog('⚠️ 数据集节点未连接到其他节点，跳过文件上传', 'warning')
   }
-  
-  // 显示运行抽屉
-  showRunDrawer.value = true
-  runSteps.value = [
-    { name: '初始化', message: '正在准备运行环境...', status: 'success', time: '00:00' }
-  ]
-  
-  // 模拟运行过程
-  setTimeout(() => {
-    runSteps.value.push({ name: '数据加载', message: '正在加载数据...', status: 'primary', progress: 0, time: '00:01' })
-    
-    let progress = 0
-    const interval = setInterval(() => {
-      progress += 20
-      runSteps.value[1].progress = progress
-      
-      if (progress >= 100) {
-        clearInterval(interval)
-        runSteps.value[1].status = 'success'
-        runSteps.value[1].message = '数据加载完成'
-        
-        setTimeout(() => {
-          runSteps.value.push(
-            { name: '数据处理', message: '处理完成', status: 'success', time: '00:03' },
-            { name: '执行完成', message: '工作流运行成功', status: 'success', time: '00:05' }
-          )
-          addLog('✅ 工作流运行完成', 'success')
-          ElMessage.success('工作流运行完成')
-        }, 500)
-      }
-    }, 200)
-  }, 500)
+
+  addLog('工作流运行完成', 'success')
+  ElMessage.success('工作流运行完成')
 }
 
 // 用户菜单
@@ -1207,38 +1410,76 @@ const triggerFileUpload = () => {
   fileInputRef.value?.click()
 }
 
-// 处理本地文件选择
-const handleLocalFileSelect = (e) => {
+// 处理本地文件选择 - 立即上传到后端 ML 服务
+const handleLocalFileSelect = async (e) => {
   const files = e.target.files
   if (!files || files.length === 0) return
-  
-  // 创建新数据集，使用第一个文件名作为数据集名称
+
   const firstFileName = files[0].name
-  const datasetName = files.length === 1 
-    ? firstFileName.replace(/\.[^/.]+$/, '') 
+  const datasetName = files.length === 1
+    ? firstFileName.replace(/\.[^/.]+$/, '')
     : `数据集_${new Date().toLocaleString().replace(/[/:]/g, '-')}`
-  
-  const newFiles = Array.from(files).map(f => ({
-    name: f.name,
-    size: f.size,
-    uploadTime: new Date().toLocaleString(),
-    file: f
-  }))
-  
+
+  showLogPanel.value = true
+  isUploading.value = true
+  uploadSuccess.value = false
+  addLog(`📂 开始上传数据集: ${datasetName}（共 ${files.length} 个文件）`, 'info')
+
+  const uploadedFiles = []
+  let datasetColumns = []
+  let datasetRowCount = 0
+
+  for (const file of Array.from(files)) {
+    try {
+      addLog(`📤 正在上传: ${file.name}`, 'info')
+      const res = await mlApi.uploadDataset(file)
+      uploadedFiles.push({
+        name: file.name,
+        size: file.size,
+        uploadTime: new Date().toLocaleString(),
+        datasetServerId: res.data.dataset_id
+      })
+      if (datasetColumns.length === 0) {
+        datasetColumns = res.data.columns
+        datasetRowCount = res.data.row_count
+      }
+      addLog(`✅ ${file.name} 上传成功（${res.data.row_count} 行 × ${res.data.col_count} 列）`, 'success')
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message
+      addLog(`❌ ${file.name} 上传失败: ${msg}`, 'error')
+      uploadedFiles.push({
+        name: file.name,
+        size: file.size,
+        uploadTime: new Date().toLocaleString(),
+        error: msg
+      })
+    }
+  }
+
+  isUploading.value = false
+  uploadSuccess.value = uploadedFiles.some(f => !f.error)
+
   const newDs = {
     id: 'ds-' + Date.now(),
     name: datasetName,
     description: '',
-    files: newFiles,
+    files: uploadedFiles,
+    columns: datasetColumns,
+    rowCount: datasetRowCount,
     createTime: new Date().toISOString(),
     updateTime: new Date().toISOString()
   }
-  
+
   datasets.value.push(newDs)
   saveDatasetsToStorage()
-  ElMessage.success(`成功添加 ${files.length} 个文件`)
-  
-  // 清空input值，允许重复选择同一文件
+
+  const successCount = uploadedFiles.filter(f => !f.error).length
+  if (successCount > 0) {
+    ElMessage.success(`成功上传 ${successCount} 个文件`)
+  } else {
+    ElMessage.error('所有文件上传失败，请检查后端服务')
+  }
+
   e.target.value = ''
 }
 
@@ -1264,9 +1505,15 @@ const handleDatasetCommand = (command, dataset) => {
     case 'delete':
       ElMessageBox.confirm('确定要删除该数据集吗？', '提示', {
         type: 'warning'
-      }).then(() => {
+      }).then(async () => {
         const index = datasets.value.findIndex(d => d.id === dataset.id)
         if (index > -1) {
+          // Delete server-side parquet files
+          for (const f of dataset.files) {
+            if (f.datasetServerId) {
+              mlApi.deleteDataset(f.datasetServerId).catch(() => {})
+            }
+          }
           datasets.value.splice(index, 1)
           saveDatasetsToStorage()
           ElMessage.success('删除成功')
@@ -1291,16 +1538,22 @@ const formatFileSize = (bytes) => {
 }
 
 const saveDatasetsToStorage = () => {
-  // 存储时不保存文件对象，只保存元信息
+  // Store metadata only (no File objects), use sessionStorage for Tab-level isolation
   const dataToSave = datasets.value.map(ds => ({
     ...ds,
-    files: ds.files.map(f => ({ name: f.name, size: f.size, uploadTime: f.uploadTime }))
+    files: ds.files.map(f => ({
+      name: f.name,
+      size: f.size,
+      uploadTime: f.uploadTime,
+      datasetServerId: f.datasetServerId || null,
+      error: f.error || null
+    }))
   }))
-  localStorage.setItem('algorithm_datasets', JSON.stringify(dataToSave))
+  sessionStorage.setItem('algorithm_datasets', JSON.stringify(dataToSave))
 }
 
 const loadDatasetsFromStorage = () => {
-  const saved = localStorage.getItem('algorithm_datasets')
+  const saved = sessionStorage.getItem('algorithm_datasets')
   if (saved) {
     try {
       datasets.value = JSON.parse(saved)
@@ -1314,12 +1567,16 @@ const loadDatasetsFromStorage = () => {
 const onDatasetDragStart = (e, dataset) => {
   e.dataTransfer.effectAllowed = 'copy'
   e.dataTransfer.setData('node-type', 'dataset-node')
+  const firstFile = dataset.files.find(f => f.datasetServerId)
   e.dataTransfer.setData('node-data', JSON.stringify({
     type: 'dataset-node',
     name: dataset.name,
     description: `数据集: ${dataset.files.length} 个文件`,
     color: '#f59e0b',
     datasetId: dataset.id,
+    datasetServerId: firstFile?.datasetServerId || null,
+    columns: dataset.columns || [],
+    rowCount: dataset.rowCount || 0,
     files: dataset.files
   }))
 }
@@ -1343,89 +1600,258 @@ const clearLogs = () => {
   uploadSuccess.value = false
 }
 
-// 上传文件到服务器
-const uploadFilesToServer = async (dataset) => {
-  showLogPanel.value = true
-  isUploading.value = true
-  uploadSuccess.value = false
-  
-  const files = dataset.files.filter(f => f.file) // 只上传有file对象的
-  
-  if (files.length === 0) {
-    addLog('⚠️ 数据集中没有可上传的文件（文件可能已从本地存储恢复，需要重新添加）', 'warning')
-    isUploading.value = false
+// ─── ML Pipeline Helpers ─────────────────────────────────────────────────────
+
+// Get the single upstream node connected to current node's input port
+const getUpstreamNode = (nodeId) => {
+  if (!lf.value) return null
+  const { nodes, edges } = lf.value.getGraphData()
+  const inEdge = edges.find(e => e.targetNodeId === nodeId)
+  if (!inEdge) return null
+  return nodes.find(n => n.id === inEdge.sourceNodeId) || null
+}
+
+// Column list from the upstream node, used for feature/target dropdowns
+const upstreamColumns = computed(() => {
+  if (!selectedNode.value) return []
+  const upstream = getUpstreamNode(selectedNode.value.id)
+  return (upstream?.properties?.columns || []).map(c => ({
+    label: `${c.name} (${c.dtype})`,
+    value: c.name
+  }))
+})
+
+// Current node's ML execution state (reactive proxy from store)
+const nodeState = computed(() => {
+  if (!selectedNode.value) return { status: 'idle', result: null, error: null }
+  return mlStore.getNodeState(selectedNode.value.id)
+})
+
+// Called when user picks a dataset for a dataset-node via the property panel dropdown
+const onDatasetNodeChange = () => {
+  const datasetId = selectedNode.value.properties.datasetId
+  const dataset = datasets.value.find(d => d.id === datasetId)
+  if (dataset) {
+    const firstFile = dataset.files.find(f => f.datasetServerId)
+    selectedNode.value.properties.datasetServerId = firstFile?.datasetServerId || null
+    selectedNode.value.properties.columns = dataset.columns || []
+    selectedNode.value.properties.rowCount = dataset.rowCount || 0
+    updateNodeProperty()
+  }
+}
+
+// Run feature selection for the column-select node
+const runFeatureSelect = async () => {
+  const nodeId = selectedNode.value.id
+  const upstream = getUpstreamNode(nodeId)
+  const datasetServerId = upstream?.properties?.datasetServerId
+  if (!datasetServerId) {
+    ElMessage.warning('上游数据集节点尚未上传到服务器，请先在侧边栏上传文件')
     return
   }
-  
-  addLog(`📂 开始处理数据集: ${dataset.name}`, 'info')
-  addLog(`📋 共 ${files.length} 个文件待上传`, 'info')
-  
+  const { taskType, targetCol, featureCols } = selectedNode.value.properties
+  if (!targetCol || !featureCols?.length) {
+    ElMessage.warning('请选择目标列和特征列')
+    return
+  }
+  mlStore.setNodeState(nodeId, { status: 'running', result: null, error: null })
   try {
-    if (files.length === 1) {
-      // 单文件上传
-      const file = files[0]
-      addLog(`📤 正在上传单个文件: ${file.name}`, 'info')
-      
-      const formData = new FormData()
-      formData.append('file', file.file)
-      
-      const response = await axios.post('http://localhost:8000/upload-single', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-          addLog(`⏳ 上传进度: ${percent}%`, 'info')
-        }
-      })
-      
-      addLog(`✅ 文件上传成功: ${file.name}`, 'success')
-      addLog(`📨 服务器响应: ${JSON.stringify(response.data)}`, 'success')
-      
-    } else {
-      // 多文件上传
-      addLog(`📤 正在批量上传 ${files.length} 个文件...`, 'info')
-      
-      const formData = new FormData()
-      files.forEach((file, index) => {
-        formData.append('files', file.file)
-        addLog(`  📎 添加文件 ${index + 1}: ${file.name}`, 'info')
-      })
-      
-      const response = await axios.post('http://localhost:8000/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-          addLog(`⏳ 批量上传进度: ${percent}%`, 'info')
-        }
-      })
-      
-      addLog(`✅ 批量上传成功！共 ${files.length} 个文件`, 'success')
-      addLog(`📨 服务器响应: ${JSON.stringify(response.data)}`, 'success')
+    const res = await mlApi.selectFeatures({
+      dataset_id: datasetServerId,
+      feature_cols: featureCols,
+      target_col: targetCol,
+      task_type: taskType || 'classification'
+    })
+    selectedNode.value.properties.selectionId = res.data.selection_id
+    updateNodeProperty()
+    mlStore.setNodeState(nodeId, { status: 'completed', result: res.data, error: null })
+    addLog(`✅ 列选择完成: ${res.data.row_count} 行有效数据${res.data.warnings?.length ? '，' + res.data.warnings.join('；') : ''}`, 'success')
+  } catch (err) {
+    const msg = err.response?.data?.detail || err.message
+    const isNotFound = err.response?.status === 404
+    const hint = isNotFound ? '（服务端数据集已失效，请在侧边栏重新上传文件）' : ''
+    mlStore.setNodeState(nodeId, { status: 'error', error: msg + hint, result: null })
+    addLog(`❌ 列选择失败: ${msg}${hint}`, 'error')
+  }
+}
+
+// Run model training for the model-train node
+const runTraining = async () => {
+  const nodeId = selectedNode.value.id
+  const upstream = getUpstreamNode(nodeId)
+  if (!upstream) {
+    ElMessage.warning('请先连接上游选择列节点')
+    return
+  }
+  const datasetId = upstream.properties?.selectionId || upstream.properties?.datasetServerId
+  const taskType = upstream.properties?.taskType || selectedNode.value.properties.taskType
+  const targetCol = upstream.properties?.targetCol
+  const featureCols = upstream.properties?.featureCols
+  if (!datasetId) {
+    ElMessage.warning('上游节点尚未执行，请先运行选择列节点')
+    return
+  }
+  if (!targetCol || !featureCols?.length) {
+    ElMessage.warning('未找到特征列/目标列配置，请先运行选择列节点')
+    return
+  }
+  // 根据任务类型自动选择模型：分类=随机森林，回归=线性回归
+  const modelType = taskType === 'classification' ? 'random_forest' : 'linear_regression'
+  const modelLabel = taskType === 'classification' ? '随机森林' : '线性回归'
+  const testSize = selectedNode.value.properties.testSize || 0.2
+
+  // 同步 taskType 到当前节点，供面板显示
+  selectedNode.value.properties.taskType = taskType
+  updateNodeProperty()
+
+  mlStore.setNodeState(nodeId, { status: 'running', result: null, error: null })
+  showLogPanel.value = true
+  addLog(`🤖 开始训练模型: ${modelLabel}（${taskType}）`, 'info')
+  try {
+    const res = await mlApi.train({
+      dataset_id: datasetId,
+      feature_cols: featureCols,
+      target_col: targetCol,
+      task_type: taskType || 'classification',
+      model_type: modelType,
+      hyperparams: {
+        test_size: testSize,
+        random_state: 42,
+        scale_features: true,
+      }
+    })
+    selectedNode.value.properties.modelId = res.data.model_id
+    selectedNode.value.properties.taskType = res.data.task_type
+    updateNodeProperty()
+    mlStore.setNodeState(nodeId, { status: 'completed', result: res.data, error: null })
+    const m = res.data.test_metrics
+    const metricStr = res.data.task_type === 'classification'
+      ? `准确率 ${(m.accuracy * 100).toFixed(1)}%`
+      : `R² ${m.r2}  RMSE ${m.rmse}`
+    addLog(`✅ 训练完成（${res.data.training_time_ms}ms）— 测试集 ${metricStr}`, 'success')
+    if (res.data.warnings?.length) {
+      res.data.warnings.forEach(w => addLog(`⚠️ ${w}`, 'warning'))
     }
-    
-    uploadSuccess.value = true
-    ElMessage.success('文件上传成功')
-    
-  } catch (error) {
-    addLog(`❌ 上传失败: ${error.message}`, 'error')
-    if (error.response) {
-      addLog(`❌ 服务器错误: ${JSON.stringify(error.response.data)}`, 'error')
-    }
-    ElMessage.error('文件上传失败')
+  } catch (err) {
+    const msg = err.response?.data?.detail || err.message
+    mlStore.setNodeState(nodeId, { status: 'error', error: msg, result: null })
+    addLog(`❌ 训练失败: ${msg}`, 'error')
+  }
+}
+
+// Load ECharts visualization for the result-viz node
+const isChartLoading = ref(false)
+const loadChart = async () => {
+  const nodeId = selectedNode.value.id
+  const upstream = getUpstreamNode(nodeId)
+  const modelId = upstream?.properties?.modelId
+  if (!modelId) {
+    ElMessage.warning('请先连接并运行上游模型训练节点')
+    return
+  }
+  const chartType = selectedNode.value.properties.chartType || 'confusion_matrix'
+  isChartLoading.value = true
+  try {
+    const res = await mlApi.getVisualization(modelId, chartType)
+    mlStore.setNodeState(nodeId, { status: 'completed', result: res.data, error: null })
+    // Lazy-load echarts and render
+    await nextTick()
+    if (!chartDomRef.value) return
+    const echarts = await import('echarts')
+    if (chartInstance) chartInstance.dispose()
+    chartInstance = echarts.init(chartDomRef.value, null, { renderer: 'canvas' })
+    chartInstance.setOption(res.data.echarts_option)
+  } catch (err) {
+    const msg = err.response?.data?.detail || err.message
+    ElMessage.error(`加载图表失败: ${msg}`)
   } finally {
-    isUploading.value = false
-    addLog('🏁 上传任务结束', 'info')
+    isChartLoading.value = false
+  }
+}
+
+// Run prediction for the model-predict node
+const runPredict = async () => {
+  const nodeId = selectedNode.value.id
+  const upstream = getUpstreamNode(nodeId)
+  const modelId = upstream?.properties?.modelId
+  if (!modelId) {
+    ElMessage.warning('请先连接并运行上游模型训练节点')
+    return
+  }
+  const predictDatasetId = selectedNode.value.properties.predictDatasetId
+  const manualInput = selectedNode.value.properties.manualInput
+  if (!predictDatasetId && !manualInput) {
+    ElMessage.warning('请选择预测数据集或手动输入数据')
+    return
+  }
+  mlStore.setNodeState(nodeId, { status: 'running', result: null, error: null })
+  try {
+    let payload = { model_id: modelId }
+    if (predictDatasetId) {
+      payload.dataset_id = predictDatasetId
+    } else {
+      payload.data = JSON.parse(manualInput)
+    }
+    const res = await mlApi.predict(payload)
+    mlStore.setNodeState(nodeId, { status: 'completed', result: res.data, error: null })
+    addLog(`✓ 预测完成: ${res.data.count} 条结果`, 'success')
+  } catch (err) {
+    const msg = err.response?.data?.detail || err.message
+    mlStore.setNodeState(nodeId, { status: 'error', error: msg, result: null })
+    addLog(`✗ 预测失败: ${msg}`, 'error')
+  }
+}
+
+// ─── Lifecycle ───────────────────────────────────────────────────────────────
+
+// Validate local dataset metadata against the server; remove stale entries
+const validateDatasetsWithServer = async () => {
+  if (datasets.value.length === 0) return
+  try {
+    const res = await mlApi.listDatasets()
+    const serverIds = new Set((res.data || []).map(d => d.dataset_id))
+
+    let staleCount = 0
+    datasets.value = datasets.value.filter(ds => {
+      const hasValid = ds.files.some(f => f.datasetServerId && serverIds.has(f.datasetServerId))
+      if (!hasValid) staleCount++
+      return hasValid
+    })
+    if (staleCount > 0) {
+      saveDatasetsToStorage()
+      ElMessage.warning(`${staleCount} 个数据集已失效（服务端数据不存在），请重新上传`)
+    }
+  } catch {
+    // Server unreachable — keep local data as-is
   }
 }
 
 // 生命周期
-onMounted(() => {
+onMounted(async () => {
   loadWorkflowsFromStorage()
   loadDatasetsFromStorage()
+  await validateDatasetsWithServer()
+
+  // Register cleanup on tab/browser close
+  beforeUnloadHandler = () => {
+    const sessionId = getSessionId()
+    if (sessionId) mlApi.cleanSession(sessionId)
+  }
+  window.addEventListener('beforeunload', beforeUnloadHandler)
 })
 
 onUnmounted(() => {
   if (canvasRef.value) {
     canvasRef.value.removeEventListener('drop', onDrop)
+    canvasRef.value.removeEventListener('dragover', handleDragOver)
+  }
+  if (beforeUnloadHandler) {
+    window.removeEventListener('beforeunload', beforeUnloadHandler)
+  }
+  mlStore.stopAllPolling()
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
   }
 })
 </script>
@@ -1827,7 +2253,7 @@ onUnmounted(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: #0f172a;
+  background: #ffffff;
 }
 
 .canvas-wrapper {
@@ -1845,12 +2271,13 @@ onUnmounted(() => {
   position: absolute;
   bottom: 20px;
   left: 20px;
-  background: rgba(30, 41, 59, 0.9);
+  background: rgba(255, 255, 255, 0.9);
   padding: 8px 16px;
   border-radius: 8px;
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #555;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .minimap {
@@ -1872,20 +2299,21 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  
+
   .empty-icon {
     color: rgba(102, 126, 234, 0.3);
     margin-bottom: 24px;
   }
-  
+
   h2 {
     font-size: 1.5rem;
     font-weight: 600;
     margin-bottom: 12px;
+    color: #333;
   }
-  
+
   p {
-    color: rgba(255, 255, 255, 0.5);
+    color: #999;
     margin-bottom: 32px;
   }
 }
@@ -1902,7 +2330,7 @@ onUnmounted(() => {
   flex-direction: column;
   
   &.visible {
-    width: 300px;
+    width: 420px;
   }
 }
 
@@ -1928,7 +2356,7 @@ onUnmounted(() => {
 
 .property-form {
   padding: 16px;
-  width: 300px;
+  width: 420px;
   
   :deep(.el-form-item__label) {
     color: rgba(255, 255, 255, 0.7);
@@ -1968,7 +2396,7 @@ onUnmounted(() => {
 
 .empty-panel {
   height: 100%;
-  width: 300px;
+  width: 420px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2040,12 +2468,36 @@ onUnmounted(() => {
 :global(.custom-node .node-label) {
   font-size: 13px;
   font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: center;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* LogicFlow 右键菜单样式 */
+:global(.lf-menu) {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: 4px 0;
+  min-width: 120px;
+}
+
+:global(.lf-menu-item) {
+  padding: 8px 16px;
+  color: #333;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+:global(.lf-menu-item:hover) {
+  background: #f0f2ff;
+  color: #667eea;
 }
 
 // 数据集列表

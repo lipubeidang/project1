@@ -17,6 +17,17 @@ app.add_middleware(
     allow_headers=["*"],  # 允许所有请求头
 )
 
+# 挂载 ML 路由
+from ml import ml_router
+app.include_router(ml_router)
+
+
+@app.on_event("startup")
+async def on_startup():
+    import asyncio
+    from ml.cleanup import cleanup_expired_sessions
+    asyncio.create_task(cleanup_expired_sessions())
+
 
 def process_tables(tables: List[pd.DataFrame]) -> Dict:
     """处理多个表格数据"""

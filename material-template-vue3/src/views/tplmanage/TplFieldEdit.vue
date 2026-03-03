@@ -403,21 +403,22 @@ const removeEnumOption = (index) => {
 
 // 保存枚举配置
 const saveEnumConfig = () => {
-  // 验证和处理枚举选项
-  enumOptions.value.forEach((option, index) => {
-    option.label = generateLabel(index)
-    if (!option.value || option.value.trim() === '') {
-      option.value = option.label
+  try {
+    // 验证和处理枚举选项
+    enumOptions.value.forEach((option, index) => {
+      option.label = generateLabel(index)
+      if (!option.value || option.value.trim() === '') {
+        option.value = option.label
+      }
+    })
+
+    // 直接更新字段中的枚举选项
+    if (currentEditField.value) {
+      currentEditField.value.enumOptions = JSON.parse(JSON.stringify(enumOptions.value))
     }
-  })
-  
-  // 直接更新字段中的枚举选项
-  if (currentEditField.value) {
-    currentEditField.value.enumOptions = JSON.parse(JSON.stringify(enumOptions.value))
-  }
-  
-  ElMessage.success('枚举配置保存成功！')
-  enumDialogVisible.value = false
+
+    ElMessage.success('枚举配置保存成功！')
+    enumDialogVisible.value = false
   } catch (error) {
     console.error('保存枚举配置失败:', error)
     ElMessage.error('保存枚举配置失败: ' + (error.message || '请重试'))
