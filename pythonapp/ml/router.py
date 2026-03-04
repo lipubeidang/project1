@@ -190,7 +190,9 @@ def _get_model(task_type: str, model_type: str, hp: dict):
                 min_samples_leaf=hp.get("min_samples_leaf", 3),
                 random_state=rs,
             ),
-            "svr": lambda: SVR(C=hp.get("C", 1.0)),
+            "svr": lambda: SVR(C=hp.get("C", 1.0), kernel=hp.get("kernel", "rbf")),
+            "svm": lambda: SVC(C=hp.get("C", 1.0), probability=True, random_state=rs, kernel=hp.get("kernel", "rbf")),
+
             "gradient_boosting": lambda: GradientBoostingRegressor(
                 n_estimators=hp.get("n_estimators", 100),
                 max_depth=hp.get("max_depth", 3),

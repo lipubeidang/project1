@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="workspace-container">
     <!-- 顶部导航栏 -->
     <header class="workspace-header">
@@ -466,9 +466,33 @@
 
               <!-- ── 模型训练节点 ── -->
               <template v-if="selectedNode.properties.nodeType === 'model-train'">
-                <el-form-item label="当前模型">
+                <el-form-item label="模型类型" v-if="selectedNode.properties.taskType">
+                  <el-select 
+                    v-model="selectedNode.properties.modelType"
+                    style="width:100%"
+                    @change="handleModelTypeChange"
+                  >
+                    <template v-if="selectedNode.properties.taskType === 'classification'">
+                      <el-option label="逻辑回归" value="logistic_regression" />
+                      <el-option label="随机森林" value="random_forest" />
+                      <el-option label="支持向量机" value="svm" />
+                      <el-option label="决策树" value="decision_tree" />
+                      <el-option label="梯度提升" value="gradient_boosting" />
+                      <el-option label="K近邻" value="knn" />
+                    </template>
+                    <template v-else>
+                      <el-option label="线性回归" value="linear_regression" />
+                      <el-option label="岭回归" value="ridge" />
+                      <el-option label="Lasso回归" value="lasso" />
+                      <el-option label="随机森林" value="random_forest" />
+                      <el-option label="支持向量回归" value="svr" />
+                      <el-option label="梯度提升" value="gradient_boosting" />
+                    </template>
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="当前模型" v-else>
                   <span style="color:rgba(255,255,255,0.8);font-size:14px">
-                    {{ selectedNode.properties.taskType === 'classification' ? '随机森林（分类）' : selectedNode.properties.taskType === 'regression' ? '线性回归（回归）' : '请先在上游选择列节点设置任务类型' }}
+                    请先在上游选择列节点设置任务类型
                   </span>
                 </el-form-item>
 
@@ -481,6 +505,106 @@
                     style="padding:0 8px"
                   />
                 </el-form-item>
+                
+                <!-- 超参配置面板 -->
+                <el-collapse v-model="activeHyperparams" style="margin: 12px 0;">
+                  <el-collapse-item title="高级参数配置" name="hyperparams">
+                    <div style="max-height: 200px; overflow-y: auto; padding-right: 8px; display: block; position: relative; width: 100%;">
+                    <el-form label-position="top" class="hyperparam-form">
+                    <!-- 核函数配置（SVM和SVR模型） -->
+                    <el-form-item label="核函数 (kernel)" v-if="selectedNode.properties.modelType === 'svm' || selectedNode.properties.modelType === 'svr'">
+                      <el-select 
+                        v-model="selectedNode.properties.kernel"
+                        style="width:100%"
+                        @change="updateNodeProperty"
+                      >
+                        <el-option label="线性核" value="linear" />
+                        <el-option label="多项式核" value="poly" />
+                        <el-option label="径向基核" value="rbf" />
+                        <el-option label="Sigmoid核" value="sigmoid" />
+                      </el-select>
+                    </el-form-item>
+
+                    <!-- 随机森林和梯度提升树参数 -->
+                    <template v-if="selectedNode.properties.modelType === 'random_forest' || selectedNode.properties.modelType === 'gradient_boosting' || selectedNode.properties.modelType === 'decision_tree'">
+                      <el-form-item label="树的数量 (n_estimators)" class="hyperparam-form" style="display: block !important; margin-bottom: 18px !important;">
+                        <el-input-number 
+                          v-model="selectedNode.properties.nEstimators" 
+                          :min="10" :max="500" :step="10"
+                          style="width:100% !important; display: block !important;"
+                          @change="updateNodeProperty"
+                        />
+                      </el-form-item>
+                      <el-form-item label="最大深度 (max_depth)" class="hyperparam-form" style="display: block !important; margin-bottom: 18px !important;">
+                        <el-input-number 
+                          v-model="selectedNode.properties.maxDepth" 
+                          :min="1" :max="50" :step="1"
+                          style="width:100% !important; display: block !important;"
+                          @change="updateNodeProperty"
+                        />
+                      </el-form-item>
+                      <el-form-item label="最小叶子样本数 (min_samples_leaf)" class="hyperparam-form" style="display: block !important; margin-bottom: 18px !important;">
+                        <el-input-number 
+                          v-model="selectedNode.properties.minSamplesLeaf" 
+                          :min="1" :max="20" :step="1"
+                          style="width:100% !important; display: block !important;"
+                          @change="updateNodeProperty"
+                        />
+                      </el-form-item>
+                    </template>
+
+                    <!-- SVM/SVR参数 -->
+                    <template v-if="selectedNode.properties.modelType === 'svm' || selectedNode.properties.modelType === 'svr'">
+                      <el-form-item label="正则化参数 C (C)">
+                        <el-slider
+                          v-model="selectedNode.properties.C"
+                          :min="0.1" :max="10" :step="0.1"
+                          show-input
+                          style="padding:0 8px"
+                        />
+                      </el-form-item>
+                    </template>
+
+                    <!-- 岭回归/Lasso参数 -->
+                    <template v-if="selectedNode.properties.modelType === 'ridge' || selectedNode.properties.modelType === 'lasso'">
+                      <el-form-item label="正则化强度 α (alpha)">
+                        <el-slider
+                          v-model="selectedNode.properties.alpha"
+                          :min="0.01" :max="10" :step="0.01"
+                          show-input
+                          style="padding:0 8px"
+                        />
+                      </el-form-item>
+                    </template>
+
+                    <!-- K近邻参数 -->
+                    <template v-if="selectedNode.properties.modelType === 'knn'">
+                      <el-form-item label="邻居数量 K (n_neighbors)">
+                        <el-input-number 
+                          v-model="selectedNode.properties.nNeighbors" 
+                          :min="1" :max="50" :step="1"
+                          style="width:100%"
+                          @change="updateNodeProperty"
+                        />
+                      </el-form-item>
+                    </template>
+
+                    <!-- 梯度提升学习率 -->
+                    <template v-if="selectedNode.properties.modelType === 'gradient_boosting'">
+                      <el-form-item label="学习率 (learning_rate)">
+                        <el-slider
+                          v-model="selectedNode.properties.learningRate"
+                          :min="0.01" :max="1" :step="0.01"
+                          show-input
+                          style="padding:0 8px"
+                        />
+                      </el-form-item>
+                    </template>
+                    </el-form>
+                    </div>
+
+                  </el-collapse-item>
+                </el-collapse>
 
                 <el-button
                   type="primary"
@@ -764,6 +888,11 @@ const showCreateDialog = ref(false)
 const showRunDrawer = ref(false)
 const runSteps = ref([])
 const activeComponents = ref(['comp-ml']) // 默认展开ML工作流分类
+const activeHyperparams = ref([]) // 超参配置面板折叠状态
+
+
+
+
 
 const newWorkflowForm = reactive({
   name: '',
@@ -1164,7 +1293,16 @@ const onDrop = (e) => {
       case 'model-train':
         Object.assign(defaultProps, {
           testSize: 0.2,
-          modelId: null, taskType: null,
+          modelId: null, taskType: null, modelType: 'random_forest',
+          // 超参数默认值
+          kernel: 'rbf',
+          nEstimators: 100,
+          maxDepth: 10,
+          minSamplesLeaf: 3,
+          C: 1.0,
+          alpha: 1.0,
+          nNeighbors: 5,
+          learningRate: 0.1,
         })
         break
       case 'result-viz':
@@ -1624,6 +1762,34 @@ const upstreamColumns = computed(() => {
 // Current node's ML execution state (reactive proxy from store)
 const nodeState = computed(() => {
   if (!selectedNode.value) return { status: 'idle', result: null, error: null }
+  // 当选择模型训练节点时，自动从上游节点获取taskType
+  if (selectedNode.value.properties.nodeType === 'model-train') {
+    const upstream = getUpstreamNode(selectedNode.value.id)
+    if (upstream?.properties?.taskType) {
+      // 当任务类型改变时，重置模型类型为默认值
+      if (selectedNode.value.properties.taskType !== upstream.properties.taskType) {
+        selectedNode.value.properties.taskType = upstream.properties.taskType
+        // 根据任务类型设置默认模型类型
+        if (upstream.properties.taskType === 'classification') {
+          selectedNode.value.properties.modelType = 'random_forest'
+        } else {
+          selectedNode.value.properties.modelType = 'linear_regression'
+        }
+        updateNodeProperty()
+      }
+    }
+    
+    // 确保超参数有默认值
+    const props = selectedNode.value.properties
+    if (!props.kernel) props.kernel = 'rbf'
+    if (props.nEstimators === undefined) props.nEstimators = 100
+    if (props.maxDepth === undefined) props.maxDepth = 10
+    if (props.minSamplesLeaf === undefined) props.minSamplesLeaf = 3
+    if (props.C === undefined) props.C = 1.0
+    if (props.alpha === undefined) props.alpha = 1.0
+    if (props.nNeighbors === undefined) props.nNeighbors = 5
+    if (props.learningRate === undefined) props.learningRate = 0.1
+  }
   return mlStore.getNodeState(selectedNode.value.id)
 })
 
@@ -1695,9 +1861,22 @@ const runTraining = async () => {
     ElMessage.warning('未找到特征列/目标列配置，请先运行选择列节点')
     return
   }
-  // 根据任务类型自动选择模型：分类=随机森林，回归=线性回归
-  const modelType = taskType === 'classification' ? 'random_forest' : 'linear_regression'
-  const modelLabel = taskType === 'classification' ? '随机森林' : '线性回归'
+  // 使用用户选择的模型类型，或默认值
+  const modelType = selectedNode.value.properties.modelType || (taskType === 'classification' ? 'random_forest' : 'linear_regression')
+  // 模型标签映射
+  const modelLabels = {
+    'logistic_regression': '逻辑回归',
+    'random_forest': '随机森林',
+    'svm': '支持向量机',
+    'decision_tree': '决策树',
+    'gradient_boosting': '梯度提升',
+    'knn': 'K近邻',
+    'linear_regression': '线性回归',
+    'ridge': '岭回归',
+    'lasso': 'Lasso回归',
+    'svr': '支持向量回归'
+  }
+  const modelLabel = modelLabels[modelType] || (taskType === 'classification' ? '随机森林' : '线性回归')
   const testSize = selectedNode.value.properties.testSize || 0.2
 
   // 同步 taskType 到当前节点，供面板显示
@@ -1707,6 +1886,25 @@ const runTraining = async () => {
   mlStore.setNodeState(nodeId, { status: 'running', result: null, error: null })
   showLogPanel.value = true
   addLog(`🤖 开始训练模型: ${modelLabel}（${taskType}）`, 'info')
+  
+  // 构建超参数对象
+  const hyperparams = {
+    test_size: testSize,
+    random_state: 42,
+    scale_features: true
+  }
+  
+  // 根据模型类型添加对应的超参数
+  const props = selectedNode.value.properties
+  if (props.kernel) hyperparams.kernel = props.kernel
+  if (props.nEstimators !== undefined) hyperparams.n_estimators = props.nEstimators
+  if (props.maxDepth !== undefined) hyperparams.max_depth = props.maxDepth
+  if (props.minSamplesLeaf !== undefined) hyperparams.min_samples_leaf = props.minSamplesLeaf
+  if (props.C !== undefined) hyperparams.C = props.C
+  if (props.alpha !== undefined) hyperparams.alpha = props.alpha
+  if (props.nNeighbors !== undefined) hyperparams.n_neighbors = props.nNeighbors
+  if (props.learningRate !== undefined) hyperparams.learning_rate = props.learningRate
+  
   try {
     const res = await mlApi.train({
       dataset_id: datasetId,
@@ -1714,11 +1912,7 @@ const runTraining = async () => {
       target_col: targetCol,
       task_type: taskType || 'classification',
       model_type: modelType,
-      hyperparams: {
-        test_size: testSize,
-        random_state: 42,
-        scale_features: true,
-      }
+      hyperparams: hyperparams
     })
     selectedNode.value.properties.modelId = res.data.model_id
     selectedNode.value.properties.taskType = res.data.task_type
@@ -1767,6 +1961,21 @@ const loadChart = async () => {
   } finally {
     isChartLoading.value = false
   }
+}
+
+// 处理模型类型改变
+const handleModelTypeChange = () => {
+  // 确保超参数有默认值
+  const props = selectedNode.value.properties
+  if (!props.kernel) props.kernel = 'rbf'
+  if (props.nEstimators === undefined) props.nEstimators = 100
+  if (props.maxDepth === undefined) props.maxDepth = 10
+  if (props.minSamplesLeaf === undefined) props.minSamplesLeaf = 3
+  if (props.C === undefined) props.C = 1.0
+  if (props.alpha === undefined) props.alpha = 1.0
+  if (props.nNeighbors === undefined) props.nNeighbors = 5
+  if (props.learningRate === undefined) props.learningRate = 0.1
+  updateNodeProperty()
 }
 
 // Run prediction for the model-predict node
@@ -2362,6 +2571,31 @@ onUnmounted(() => {
     color: rgba(255, 255, 255, 0.7);
   }
   
+  /* 只修改超参配置面板中的参数名称颜色 */
+  :deep(.hyperparam-form .el-form-item__label) {
+    color: #000 !important;
+  }
+  
+  /* 只修改超参配置面板中的输入控件文字颜色 */
+  :deep(.hyperparam-form .el-input__inner),
+  :deep(.hyperparam-form .el-textarea__inner),
+  :deep(.hyperparam-form .el-select__input),
+  :deep(.hyperparam-form .el-slider__input-inner),
+  :deep(.hyperparam-form .el-input-number .el-input__inner) {
+    color: #000 !important;
+  }
+  
+  /* 确保超参配置面板中的输入控件正常显示 */
+  :deep(.hyperparam-form .el-input-number) {
+    width: 100% !important;
+    display: block !important;
+  }
+  
+  :deep(.hyperparam-form .el-input-number__decrease),
+  :deep(.hyperparam-form .el-input-number__increase) {
+    color: #000 !important;
+  }
+  
   :deep(.el-input__wrapper),
   :deep(.el-textarea__inner),
   :deep(.el-select__wrapper) {
@@ -2393,6 +2627,8 @@ onUnmounted(() => {
     color: rgba(255, 255, 255, 0.8);
   }
 }
+
+
 
 .empty-panel {
   height: 100%;
