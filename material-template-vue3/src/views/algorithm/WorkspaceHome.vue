@@ -139,6 +139,59 @@
             </el-collapse>
           </div>
           
+          <!-- 数据预处理 -->
+          <div class="sidebar-section">
+            <el-collapse v-model="activePreprocess" class="component-collapse">
+              <el-collapse-item name="preprocess">
+                <template #title>
+                  <div 
+                    class="component-item"
+                    draggable="true"
+                    @dragstart="onComponentDragStart($event, { id: 'column-select', label: '数据预处理', icon: SetUp, isComponent: true, color: '#14b8a6', description: '数据预处理和特征选择' })"
+                    @dragend="onDragEnd"
+                  >
+                    <div class="item-icon" style="background: #14b8a6">
+                      <el-icon><SetUp /></el-icon>
+                    </div>
+                    <div class="item-info">
+                      <span class="item-name">数据预处理</span>
+                    </div>
+                  </div>
+                </template>
+                
+                <div class="preprocess-tree-panel">
+                  <el-tree
+                    :data="preprocessTreeData"
+                    :props="{ children: 'children', label: 'label' }"
+                    @node-click="handlePreprocessNodeClick"
+                    default-expand-all
+                    highlight-current
+                  >
+                    <template #default="{ node, data }">
+                      <span class="custom-tree-node">
+                        <el-icon v-if="data.icon" style="margin-right: 6px;">
+                          <component :is="data.icon" />
+                        </el-icon>
+                        <span>{{ node.label }}</span>
+                        <el-tag v-if="isPreprocessApplied(data.id)" size="small" type="success" style="margin-left: 8px;">已应用</el-tag>
+                        <el-button
+                          v-if="isPreprocessApplied(data.id)"
+                          type="danger"
+                          size="small"
+                          text
+                          style="margin-left: 8px;"
+                          @click.stop="removePreprocessStep(data.id)"
+                        >
+                          <el-icon><Close /></el-icon>
+                        </el-button>
+                      </span>
+                    </template>
+                  </el-tree>
+                </div>
+              </el-collapse-item>
+            </el-collapse>
+          </div>
+          
           <!-- 工作空间 -->
           <div class="sidebar-section">
             <div class="section-title">
@@ -371,7 +424,7 @@
                 <el-empty v-else description="请在左侧上传数据集后选择" :image-size="50" />
               </template>
 
-              <!-- ── 选择列节点 ── -->
+              <!-- ── 数据预处理节点 ── -->
               <template v-if="selectedNode.properties.nodeType === 'column-select'">
                 <el-form-item label="任务类型">
                   <el-radio-group v-model="selectedNode.properties.taskType" @change="updateNodeProperty">
@@ -410,6 +463,9 @@
                     />
                   </el-select>
                 </el-form-item>
+
+
+
                 <el-button
                   type="primary"
                   style="width:100%;margin-bottom:12px"
@@ -419,6 +475,7 @@
                   确认选择并预览
                 </el-button>
                 <el-alert v-if="nodeState.error" :title="nodeState.error" type="error" :closable="false" show-icon />
+
                 <template v-if="nodeState.result">
                   <el-divider>数据预览</el-divider>
                   <el-descriptions :column="1" size="small" border>
@@ -492,7 +549,7 @@
                 </el-form-item>
                 <el-form-item label="当前模型" v-else>
                   <span style="color:rgba(255,255,255,0.8);font-size:14px">
-                    请先在上游选择列节点设置任务类型
+                    请先在上游数据预处理节点设置任务类型
                   </span>
                 </el-form-item>
 
@@ -810,6 +867,412 @@
       </template>
     </el-dialog>
     
+    <!-- 按列分组配置对话框 -->
+    <el-dialog v-model="showGroupByDialog" title="按列分组配置" width="500px" class="create-dialog">
+      <el-form :model="groupByForm" label-position="top">
+        <el-form-item label="选择分组列" required>
+          <el-select v-model="groupByForm.columns" multiple placeholder="选择要分组的列" style="width: 100%;">
+            <el-option
+              v-for="col in upstreamColumns"
+              :key="col.value"
+              :label="col.label"
+              :value="col.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="聚合函数" required>
+          <el-select v-model="groupByForm.aggregateFunction" placeholder="选择聚合函数" style="width: 100%;">
+            <el-option label="求和" value="sum" />
+            <el-option label="平均值" value="mean" />
+            <el-option label="计数" value="count" />
+            <el-option label="最大值" value="max" />
+            <el-option label="最小值" value="min" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="聚合列" required>
+          <el-select v-model="groupByForm.aggregateColumns" multiple placeholder="选择要聚合的列" style="width: 100%;">
+            <el-option
+              v-for="col in upstreamColumns"
+              :key="col.value"
+              :label="col.label"
+              :value="col.value"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showGroupByDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmGroupByConfig">确定</el-button>
+      </template>
+    </el-dialog>
+    
+    <!-- 聚合统计配置对话框 -->
+    <el-dialog v-model="showAggregateStatsDialog" title="聚合统计配置" width="500px" class="create-dialog">
+      <el-form :model="aggregateStatsForm" label-position="top">
+        <el-form-item label="选择分组列" required>
+          <el-select v-model="aggregateStatsForm.groupColumns" multiple placeholder="选择要分组的列（可选）" style="width: 100%;">
+            <el-option
+              v-for="col in upstreamColumns"
+              :key="col.value"
+              :label="col.label"
+              :value="col.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="统计列" required>
+          <el-select v-model="aggregateStatsForm.statsColumns" multiple placeholder="选择要统计的列" style="width: 100%;">
+            <el-option
+              v-for="col in upstreamColumns"
+              :key="col.value"
+              :label="col.label"
+              :value="col.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="统计函数" required>
+          <el-select v-model="aggregateStatsForm.statsFunctions" multiple placeholder="选择统计函数" style="width: 100%;">
+            <el-option label="计数" value="count" />
+            <el-option label="求和" value="sum" />
+            <el-option label="平均值" value="mean" />
+            <el-option label="中位数" value="median" />
+            <el-option label="标准差" value="std" />
+            <el-option label="最小值" value="min" />
+            <el-option label="最大值" value="max" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showAggregateStatsDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmAggregateStatsConfig">确定</el-button>
+      </template>
+    </el-dialog>
+    
+    <!-- 数学计算配置对话框 -->
+    <el-dialog v-model="showMathCalcDialog" title="数学计算配置" width="500px" class="create-dialog">
+      <el-form :model="mathCalcForm" label-position="top">
+        <el-form-item label="新列名" required>
+          <el-input v-model="mathCalcForm.newColumnName" placeholder="输入新列名" />
+        </el-form-item>
+        <el-form-item label="计算公式" required>
+          <el-select v-model="mathCalcForm.calcType" placeholder="选择计算类型" style="width: 100%; margin-bottom: 10px;">
+            <el-option label="两列运算" value="binary" />
+            <el-option label="单列运算" value="unary" />
+            <el-option label="常量运算" value="constant" />
+          </el-select>
+        </el-form-item>
+        <template v-if="mathCalcForm.calcType === 'binary'">
+          <el-form-item label="第一列" required>
+            <el-select v-model="mathCalcForm.column1" placeholder="选择第一列" style="width: 100%;">
+              <el-option
+                v-for="col in upstreamColumns"
+                :key="col.value"
+                :label="col.label"
+                :value="col.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="运算符" required>
+            <el-select v-model="mathCalcForm.operator" placeholder="选择运算符" style="width: 100%;">
+              <el-option label="加 (+)" value="+" />
+              <el-option label="减 (-)" value="-" />
+              <el-option label="乘 (*)" value="*" />
+              <el-option label="除 (/)" value="/" />
+              <el-option label="幂 (^)" value="**" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="第二列" required>
+            <el-select v-model="mathCalcForm.column2" placeholder="选择第二列" style="width: 100%;">
+              <el-option
+                v-for="col in upstreamColumns"
+                :key="col.value"
+                :label="col.label"
+                :value="col.value"
+              />
+            </el-select>
+          </el-form-item>
+        </template>
+        <template v-else-if="mathCalcForm.calcType === 'unary'">
+          <el-form-item label="选择列" required>
+            <el-select v-model="mathCalcForm.column1" placeholder="选择列" style="width: 100%;">
+              <el-option
+                v-for="col in upstreamColumns"
+                :key="col.value"
+                :label="col.label"
+                :value="col.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="运算符" required>
+            <el-select v-model="mathCalcForm.operator" placeholder="选择运算符" style="width: 100%;">
+              <el-option label="平方" value="square" />
+              <el-option label="平方根" value="sqrt" />
+              <el-option label="对数 (ln)" value="log" />
+              <el-option label="对数 (log10)" value="log10" />
+              <el-option label="绝对值" value="abs" />
+              <el-option label="取整" value="round" />
+            </el-select>
+          </el-form-item>
+        </template>
+        <template v-else-if="mathCalcForm.calcType === 'constant'">
+          <el-form-item label="选择列" required>
+            <el-select v-model="mathCalcForm.column1" placeholder="选择列" style="width: 100%;">
+              <el-option
+                v-for="col in upstreamColumns"
+                :key="col.value"
+                :label="col.label"
+                :value="col.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="运算符" required>
+            <el-select v-model="mathCalcForm.operator" placeholder="选择运算符" style="width: 100%;">
+              <el-option label="加 (+)" value="+" />
+              <el-option label="减 (-)" value="-" />
+              <el-option label="乘 (*)" value="*" />
+              <el-option label="除 (/)" value="/" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="常量值" required>
+            <el-input-number v-model="mathCalcForm.constantValue" :precision="4" style="width: 100%;" />
+          </el-form-item>
+        </template>
+      </el-form>
+      <template #footer>
+        <el-button @click="showMathCalcDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmMathCalcConfig">确定</el-button>
+      </template>
+    </el-dialog>
+    
+    <!-- 列组合配置对话框 -->
+    <el-dialog v-model="showColumnCombineDialog" title="列组合配置" width="500px" class="create-dialog">
+      <el-form :model="columnCombineForm" label-position="top">
+        <el-form-item label="新列名" required>
+          <el-input v-model="columnCombineForm.newColumnName" placeholder="输入新列名" />
+        </el-form-item>
+        <el-form-item label="选择要组合的列" required>
+          <el-select v-model="columnCombineForm.columns" multiple placeholder="选择要组合的列" style="width: 100%;">
+            <el-option
+              v-for="col in upstreamColumns"
+              :key="col.value"
+              :label="col.label"
+              :value="col.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="组合方式" required>
+          <el-select v-model="columnCombineForm.combineMethod" placeholder="选择组合方式" style="width: 100%;">
+            <el-option label="字符串拼接" value="concat" />
+            <el-option label="求和" value="sum" />
+            <el-option label="平均值" value="mean" />
+            <el-option label="乘积" value="product" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="分隔符" v-if="columnCombineForm.combineMethod === 'concat'">
+          <el-input v-model="columnCombineForm.separator" placeholder="输入分隔符，默认为空格" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showColumnCombineDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmColumnCombineConfig">确定</el-button>
+      </template>
+    </el-dialog>
+    
+    <!-- 列类型转换配置对话框 -->
+    <el-dialog v-model="showTypeConversionDialog" title="列类型转换配置" width="500px" class="create-dialog">
+      <el-form :model="typeConversionForm" label-position="top">
+        <el-form-item label="转换类型" required>
+          <el-select v-model="typeConversionForm.conversionType" placeholder="选择转换类型" style="width: 100%;">
+            <el-option label="转数值型" value="to_numeric" />
+            <el-option label="转字符串" value="to_string" />
+            <el-option label="转日期时间" value="to_datetime" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="选择列" required>
+          <el-select v-model="typeConversionForm.columns" multiple placeholder="选择要转换的列" style="width: 100%;">
+            <el-option
+              v-for="col in upstreamColumns"
+              :key="col.value"
+              :label="col.label"
+              :value="col.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="日期时间格式" v-if="typeConversionForm.conversionType === 'to_datetime'">
+          <el-input v-model="typeConversionForm.dateFormat" placeholder="输入日期时间格式，如：%Y-%m-%d %H:%M:%S" />
+        </el-form-item>
+        <el-form-item label="错误处理" v-if="typeConversionForm.conversionType === 'to_numeric'">
+          <el-select v-model="typeConversionForm.errorHandling" placeholder="选择错误处理方式" style="width: 100%;">
+            <el-option label="忽略错误" value="ignore" />
+            <el-option label="设为NaN" value="coerce" />
+            <el-option label="设为默认值" value="default" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="默认值" v-if="typeConversionForm.conversionType === 'to_numeric' && typeConversionForm.errorHandling === 'default'">
+          <el-input-number v-model="typeConversionForm.defaultValue" :precision="4" style="width: 100%;" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showTypeConversionDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmTypeConversionConfig">确定</el-button>
+      </template>
+    </el-dialog>
+    
+    <!-- 列转向量配置对话框 -->
+    <el-dialog v-model="showToVectorDialog" title="列转向量配置" width="500px" class="create-dialog">
+      <el-form :model="toVectorForm" label-position="top">
+        <el-form-item label="编码类型" required>
+          <el-select v-model="toVectorForm.encodingType" placeholder="选择编码类型" style="width: 100%;">
+            <el-option label="One-Hot编码" value="one_hot" />
+            <el-option label="Label编码" value="label_encode" />
+            <el-option label="TF-IDF" value="tfidf" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="选择列" required>
+          <el-select v-model="toVectorForm.columns" multiple placeholder="选择要编码的列" style="width: 100%;">
+            <el-option
+              v-for="col in upstreamColumns"
+              :key="col.value"
+              :label="col.label"
+              :value="col.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="前缀" v-if="toVectorForm.encodingType === 'one_hot'">
+          <el-input v-model="toVectorForm.prefix" placeholder="输入列名前缀，如：col_" />
+        </el-form-item>
+        <el-form-item label="最大特征数" v-if="toVectorForm.encodingType === 'tfidf'">
+          <el-input-number v-model="toVectorForm.maxFeatures" :min="1" style="width: 100%;" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showToVectorDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmToVectorConfig">确定</el-button>
+      </template>
+    </el-dialog>
+    
+    <!-- 列重排配置对话框 -->
+    <el-dialog v-model="showReorderDialog" title="列重排配置" width="500px" class="create-dialog">
+      <el-form :model="reorderForm" label-position="top">
+        <el-form-item label="重排类型" required>
+          <el-select v-model="reorderForm.reorderType" placeholder="选择重排类型" style="width: 100%;">
+            <el-option label="排序" value="sort_by_column" />
+            <el-option label="移动列" value="move_column" />
+          </el-select>
+        </el-form-item>
+        <template v-if="reorderForm.reorderType === 'sort_by_column'">
+          <el-form-item label="选择排序列" required>
+            <el-select v-model="reorderForm.sortColumns" multiple placeholder="选择要排序的列" style="width: 100%;">
+              <el-option
+                v-for="col in upstreamColumns"
+                :key="col.value"
+                :label="col.label"
+                :value="col.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="排序方式" required>
+            <el-select v-model="reorderForm.sortOrder" placeholder="选择排序方式" style="width: 100%;">
+              <el-option label="升序" value="asc" />
+              <el-option label="降序" value="desc" />
+            </el-select>
+          </el-form-item>
+        </template>
+        <template v-else-if="reorderForm.reorderType === 'move_column'">
+          <el-form-item label="选择要移动的列" required>
+            <el-select v-model="reorderForm.moveColumns" multiple placeholder="选择要移动的列" style="width: 100%;">
+              <el-option
+                v-for="col in upstreamColumns"
+                :key="col.value"
+                :label="col.label"
+                :value="col.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="目标位置" required>
+            <el-input-number v-model="reorderForm.targetPosition" :min="0" style="width: 100%;" />
+          </el-form-item>
+        </template>
+      </el-form>
+      <template #footer>
+        <el-button @click="showReorderDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmReorderConfig">确定</el-button>
+      </template>
+    </el-dialog>
+    
+    <!-- 删除配置对话框 -->
+    <el-dialog v-model="showDeleteDialog" title="删除配置" width="500px" class="create-dialog">
+      <el-form :model="deleteForm" label-position="top">
+        <el-form-item label="删除类型" required>
+          <el-select v-model="deleteForm.deleteType" placeholder="选择删除类型" style="width: 100%;">
+            <el-option label="删除行" value="delete_rows" />
+            <el-option label="删除列" value="delete_columns" />
+            <el-option label="删除缺失值" value="drop_na" />
+          </el-select>
+        </el-form-item>
+        <template v-if="deleteForm.deleteType === 'delete_rows'">
+          <el-form-item label="删除条件" required>
+            <el-select v-model="deleteForm.conditionType" placeholder="选择删除条件" style="width: 100%;">
+              <el-option label="按索引范围" value="index_range" />
+              <el-option label="按条件" value="condition" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="起始索引" v-if="deleteForm.conditionType === 'index_range'">
+            <el-input-number v-model="deleteForm.startIndex" :min="0" style="width: 100%;" />
+          </el-form-item>
+          <el-form-item label="结束索引" v-if="deleteForm.conditionType === 'index_range'">
+            <el-input-number v-model="deleteForm.endIndex" :min="0" style="width: 100%;" />
+          </el-form-item>
+          <el-form-item label="选择列" v-if="deleteForm.conditionType === 'condition'" required>
+            <el-select v-model="deleteForm.conditionColumn" placeholder="选择条件列" style="width: 100%;">
+              <el-option
+                v-for="col in upstreamColumns"
+                :key="col.value"
+                :label="col.label"
+                :value="col.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="运算符" v-if="deleteForm.conditionType === 'condition'" required>
+            <el-select v-model="deleteForm.operator" placeholder="选择运算符" style="width: 100%;">
+              <el-option label="等于" value="eq" />
+              <el-option label="不等于" value="ne" />
+              <el-option label="大于" value="gt" />
+              <el-option label="小于" value="lt" />
+              <el-option label="大于等于" value="ge" />
+              <el-option label="小于等于" value="le" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="比较值" v-if="deleteForm.conditionType === 'condition'" required>
+            <el-input v-model="deleteForm.compareValue" placeholder="输入比较值" style="width: 100%;" />
+          </el-form-item>
+        </template>
+        <template v-else-if="deleteForm.deleteType === 'delete_columns'">
+          <el-form-item label="选择要删除的列" required>
+            <el-select v-model="deleteForm.columns" multiple placeholder="选择要删除的列" style="width: 100%;">
+              <el-option
+                v-for="col in upstreamColumns"
+                :key="col.value"
+                :label="col.label"
+                :value="col.value"
+              />
+            </el-select>
+          </el-form-item>
+        </template>
+        <template v-else-if="deleteForm.deleteType === 'drop_na'">
+          <el-form-item label="删除方式" required>
+            <el-select v-model="deleteForm.dropNaMethod" placeholder="选择删除方式" style="width: 100%;">
+              <el-option label="删除所有包含缺失值的行" value="any" />
+              <el-option label="删除全部为缺失值的行" value="all" />
+            </el-select>
+          </el-form-item>
+        </template>
+      </el-form>
+      <template #footer>
+        <el-button @click="showDeleteDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmDeleteConfig">确定</el-button>
+      </template>
+    </el-dialog>
+    
     <!-- 底部日志面板 -->
     <transition name="slide-up">
       <div v-if="showLogPanel" class="log-panel">
@@ -854,7 +1317,7 @@ import {
   // 组件图标
   Folder, Document, SetUp,
   Cpu, TrendCharts, MagicStick, Histogram,
-  Upload, Grid, FolderOpened, View
+  Upload, Grid, FolderOpened, View, Sort, Refresh, Calendar
 } from '@element-plus/icons-vue'
 import { useMlWorkflowStore } from '@/stores/mlWorkflow'
 import { mlApi, getSessionId } from '@/utils/mlApi'
@@ -889,10 +1352,78 @@ const showRunDrawer = ref(false)
 const runSteps = ref([])
 const activeComponents = ref(['comp-ml']) // 默认展开ML工作流分类
 const activeHyperparams = ref([]) // 超参配置面板折叠状态
+const activePreprocess = ref([]) // 预处理面板折叠状态
 
+// 预处理树形数据
+const preprocessTreeData = ref([
+  {
+    id: 'preprocess',
+    label: '预处理',
+    icon: markRaw(SetUp),
+    children: [
+      {
+        id: 'grouping',
+        label: '分组',
+        icon: markRaw(Grid),
+        children: [
+          { id: 'group_by_column', label: '按列分组', icon: markRaw(Folder) },
+          { id: 'aggregate_stats', label: '聚合统计', icon: markRaw(Histogram) }
+        ]
+      },
+      {
+        id: 'column_derivation',
+        label: '列派生',
+        icon: markRaw(Document),
+        children: [
+          { id: 'math_calc', label: '数学计算', icon: markRaw(TrendCharts) },
+          { id: 'column_combine', label: '列组合', icon: markRaw(Connection) }
+        ]
+      },
+      {
+        id: 'type_conversion',
+        label: '列类型转换',
+        icon: markRaw(Refresh),
+        children: [
+          { id: 'to_numeric', label: '转数值型', icon: markRaw(Sort) },
+          { id: 'to_string', label: '转字符串', icon: markRaw(Document) },
+          { id: 'to_datetime', label: '转日期时间', icon: markRaw(Calendar) }
+        ]
+      },
+      {
+        id: 'to_vector',
+        label: '列转向量',
+        icon: markRaw(Cpu),
+        children: [
+          { id: 'one_hot', label: 'One-Hot编码', icon: markRaw(Grid) },
+          { id: 'label_encode', label: 'Label编码', icon: markRaw(Document) },
+          { id: 'tfidf', label: 'TF-IDF', icon: markRaw(MagicStick) }
+        ]
+      },
+      {
+        id: 'reorder',
+        label: '列重排',
+        icon: markRaw(Sort),
+        children: [
+          { id: 'sort_by_column', label: '排序', icon: markRaw(Sort) },
+          { id: 'move_column', label: '移动列', icon: markRaw(FolderOpened) }
+        ]
+      },
+      {
+        id: 'delete',
+        label: '删除',
+        icon: markRaw(Delete),
+        children: [
+          { id: 'delete_rows', label: '删除行', icon: markRaw(Close) },
+          { id: 'delete_columns', label: '删除列', icon: markRaw(Delete) },
+          { id: 'drop_na', label: '删除缺失值', icon: markRaw(Close) }
+        ]
+      }
+    ]
+  }
+])
 
-
-
+// 已应用的预处理步骤
+const appliedPreprocessSteps = ref([])
 
 const newWorkflowForm = reactive({
   name: '',
@@ -923,7 +1454,6 @@ const componentItems = [
     icon: markRaw(Cpu),
     isCategory: true,
     children: [
-      { id: 'column-select', label: '选择列', icon: markRaw(SetUp), isComponent: true, color: '#14b8a6', description: '选择特征列和目标列' },
       { id: 'model-train', label: '模型训练', icon: markRaw(TrendCharts), isComponent: true, color: '#667eea', description: '训练机器学习模型' },
       { id: 'result-viz', label: '结果可视化', icon: markRaw(Histogram), isComponent: true, color: '#f97316', description: '可视化训练结果' },
       { id: 'model-predict', label: '模型预测', icon: markRaw(MagicStick), isComponent: true, color: '#6366f1', description: '使用模型进行预测' }
@@ -1822,12 +2352,16 @@ const runFeatureSelect = async () => {
   }
   mlStore.setNodeState(nodeId, { status: 'running', result: null, error: null })
   try {
-    const res = await mlApi.selectFeatures({
+    // 构建请求参数，包含已应用的预处理步骤
+    const params = {
       dataset_id: datasetServerId,
       feature_cols: featureCols,
       target_col: targetCol,
-      task_type: taskType || 'classification'
-    })
+      task_type: taskType || 'classification',
+      preprocess_steps: appliedPreprocessSteps.value
+    }
+    
+    const res = await mlApi.selectFeatures(params)
     selectedNode.value.properties.selectionId = res.data.selection_id
     updateNodeProperty()
     mlStore.setNodeState(nodeId, { status: 'completed', result: res.data, error: null })
@@ -1846,7 +2380,7 @@ const runTraining = async () => {
   const nodeId = selectedNode.value.id
   const upstream = getUpstreamNode(nodeId)
   if (!upstream) {
-    ElMessage.warning('请先连接上游选择列节点')
+    ElMessage.warning('请先连接上游数据预处理节点')
     return
   }
   const datasetId = upstream.properties?.selectionId || upstream.properties?.datasetServerId
@@ -1854,11 +2388,11 @@ const runTraining = async () => {
   const targetCol = upstream.properties?.targetCol
   const featureCols = upstream.properties?.featureCols
   if (!datasetId) {
-    ElMessage.warning('上游节点尚未执行，请先运行选择列节点')
+    ElMessage.warning('上游节点尚未执行，请先运行数据预处理节点')
     return
   }
   if (!targetCol || !featureCols?.length) {
-    ElMessage.warning('未找到特征列/目标列配置，请先运行选择列节点')
+    ElMessage.warning('未找到特征列/目标列配置，请先运行数据预处理节点')
     return
   }
   // 使用用户选择的模型类型，或默认值
@@ -1976,6 +2510,703 @@ const handleModelTypeChange = () => {
   if (props.nNeighbors === undefined) props.nNeighbors = 5
   if (props.learningRate === undefined) props.learningRate = 0.1
   updateNodeProperty()
+}
+
+// 处理预处理节点点击
+const handlePreprocessNodeClick = (data) => {
+  // 只有叶子节点（具体预处理操作）才处理
+  if (!data.children || data.children.length === 0) {
+    console.log('选择预处理操作:', data.id, data.label)
+    
+    // 处理按列分组操作
+    if (data.id === 'group_by_column') {
+      handleGroupByColumn()
+    } else if (data.id === 'aggregate_stats') {
+      // 处理聚合统计操作
+      handleAggregateStats()
+    } else if (data.id === 'math_calc') {
+      // 处理数学计算操作
+      handleMathCalc()
+    } else if (data.id === 'column_combine') {
+      // 处理列组合操作
+      handleColumnCombine()
+    } else if (data.id === 'to_numeric' || data.id === 'to_string' || data.id === 'to_datetime') {
+      // 处理列类型转换操作
+      handleTypeConversion()
+      // 设置转换类型
+      typeConversionForm.conversionType = data.id
+    } else if (data.id === 'one_hot' || data.id === 'label_encode' || data.id === 'tfidf') {
+      // 处理列转向量操作
+      handleToVector()
+      // 设置编码类型
+      toVectorForm.encodingType = data.id
+    } else if (data.id === 'sort_by_column' || data.id === 'move_column') {
+      // 处理列重排操作
+      handleReorder()
+      // 设置重排类型
+      reorderForm.reorderType = data.id
+    } else if (data.id === 'delete_rows' || data.id === 'delete_columns' || data.id === 'drop_na') {
+      // 处理删除操作
+      handleDelete()
+      // 设置删除类型
+      deleteForm.deleteType = data.id
+    } else {
+      // 其他预处理操作
+      ElMessage.info(`选择了预处理操作: ${data.label}`)
+    }
+  }
+}
+
+// 按列分组配置对话框状态
+const showGroupByDialog = ref(false)
+const groupByForm = reactive({
+  columns: [],
+  aggregateFunction: 'sum',
+  aggregateColumns: []
+})
+
+// 处理按列分组操作
+const handleGroupByColumn = () => {
+  if (!selectedNode.value) {
+    ElMessage.warning('请先选择一个数据预处理节点')
+    return
+  }
+  
+  const columns = upstreamColumns.value
+  if (columns.length === 0) {
+    ElMessage.warning('请先连接上游数据集节点')
+    return
+  }
+  
+  // 重置表单
+  groupByForm.columns = []
+  groupByForm.aggregateFunction = 'sum'
+  groupByForm.aggregateColumns = []
+  
+  // 打开配置对话框
+  showGroupByDialog.value = true
+}
+
+// 确认按列分组配置
+const confirmGroupByConfig = () => {
+  // 验证选择
+  if (groupByForm.columns.length === 0) {
+    ElMessage.warning('请选择至少一个分组列')
+    return
+  }
+  if (groupByForm.aggregateColumns.length === 0) {
+    ElMessage.warning('请选择至少一个聚合列')
+    return
+  }
+  
+  // 添加到已应用步骤
+  const step = {
+    id: 'group_by_column',
+    label: '按列分组',
+    config: {
+      columns: [...groupByForm.columns],
+      aggregateFunction: groupByForm.aggregateFunction,
+      aggregateColumns: [...groupByForm.aggregateColumns]
+    }
+  }
+  
+  // 检查是否已存在相同的步骤
+  const existingIndex = appliedPreprocessSteps.value.findIndex(s => s.id === 'group_by_column')
+  if (existingIndex > -1) {
+    appliedPreprocessSteps.value[existingIndex] = step
+  } else {
+    appliedPreprocessSteps.value.push(step)
+  }
+  
+  ElMessage.success('按列分组配置已应用')
+  showGroupByDialog.value = false
+}
+
+// 聚合统计配置对话框状态
+const showAggregateStatsDialog = ref(false)
+const aggregateStatsForm = reactive({
+  groupColumns: [],
+  statsColumns: [],
+  statsFunctions: []
+})
+
+// 处理聚合统计操作
+const handleAggregateStats = () => {
+  if (!selectedNode.value) {
+    ElMessage.warning('请先选择一个数据预处理节点')
+    return
+  }
+  
+  const columns = upstreamColumns.value
+  if (columns.length === 0) {
+    ElMessage.warning('请先连接上游数据集节点')
+    return
+  }
+  
+  // 重置表单
+  aggregateStatsForm.groupColumns = []
+  aggregateStatsForm.statsColumns = []
+  aggregateStatsForm.statsFunctions = []
+  
+  // 打开配置对话框
+  showAggregateStatsDialog.value = true
+}
+
+// 确认聚合统计配置
+const confirmAggregateStatsConfig = () => {
+  // 验证选择
+  if (aggregateStatsForm.statsColumns.length === 0) {
+    ElMessage.warning('请选择至少一个统计列')
+    return
+  }
+  if (aggregateStatsForm.statsFunctions.length === 0) {
+    ElMessage.warning('请选择至少一个统计函数')
+    return
+  }
+  
+  // 添加到已应用步骤
+  const step = {
+    id: 'aggregate_stats',
+    label: '聚合统计',
+    config: {
+      groupColumns: [...aggregateStatsForm.groupColumns],
+      statsColumns: [...aggregateStatsForm.statsColumns],
+      statsFunctions: [...aggregateStatsForm.statsFunctions]
+    }
+  }
+  
+  // 检查是否已存在相同的步骤
+  const existingIndex = appliedPreprocessSteps.value.findIndex(s => s.id === 'aggregate_stats')
+  if (existingIndex > -1) {
+    appliedPreprocessSteps.value[existingIndex] = step
+  } else {
+    appliedPreprocessSteps.value.push(step)
+  }
+  
+  ElMessage.success('聚合统计配置已应用')
+  showAggregateStatsDialog.value = false
+}
+
+// 数学计算配置对话框状态
+const showMathCalcDialog = ref(false)
+const mathCalcForm = reactive({
+  newColumnName: '',
+  calcType: 'binary',
+  column1: '',
+  column2: '',
+  operator: '+',
+  constantValue: 0
+})
+
+// 处理数学计算操作
+const handleMathCalc = () => {
+  if (!selectedNode.value) {
+    ElMessage.warning('请先选择一个数据预处理节点')
+    return
+  }
+  
+  const columns = upstreamColumns.value
+  if (columns.length === 0) {
+    ElMessage.warning('请先连接上游数据集节点')
+    return
+  }
+  
+  // 重置表单
+  mathCalcForm.newColumnName = ''
+  mathCalcForm.calcType = 'binary'
+  mathCalcForm.column1 = ''
+  mathCalcForm.column2 = ''
+  mathCalcForm.operator = '+'
+  mathCalcForm.constantValue = 0
+  
+  // 打开配置对话框
+  showMathCalcDialog.value = true
+}
+
+// 确认数学计算配置
+const confirmMathCalcConfig = () => {
+  // 验证输入
+  if (!mathCalcForm.newColumnName.trim()) {
+    ElMessage.warning('请输入新列名')
+    return
+  }
+  if (!mathCalcForm.column1) {
+    ElMessage.warning('请选择第一列')
+    return
+  }
+  if (mathCalcForm.calcType === 'binary' && !mathCalcForm.column2) {
+    ElMessage.warning('请选择第二列')
+    return
+  }
+  
+  // 构建配置
+  const config = {
+    newColumnName: mathCalcForm.newColumnName.trim(),
+    calcType: mathCalcForm.calcType,
+    column1: mathCalcForm.column1,
+    operator: mathCalcForm.operator
+  }
+  
+  if (mathCalcForm.calcType === 'binary') {
+    config.column2 = mathCalcForm.column2
+  } else if (mathCalcForm.calcType === 'constant') {
+    config.constantValue = mathCalcForm.constantValue
+  }
+  
+  // 添加到已应用步骤
+  const step = {
+    id: 'math_calc',
+    label: '数学计算',
+    config: config
+  }
+  
+  // 检查是否已存在相同的步骤
+  const existingIndex = appliedPreprocessSteps.value.findIndex(s => s.id === 'math_calc')
+  if (existingIndex > -1) {
+    appliedPreprocessSteps.value[existingIndex] = step
+  } else {
+    appliedPreprocessSteps.value.push(step)
+  }
+  
+  ElMessage.success('数学计算配置已应用')
+  showMathCalcDialog.value = false
+}
+
+// 列组合配置对话框状态
+const showColumnCombineDialog = ref(false)
+const columnCombineForm = reactive({
+  newColumnName: '',
+  columns: [],
+  combineMethod: 'concat',
+  separator: ''
+})
+
+// 处理列组合操作
+const handleColumnCombine = () => {
+  if (!selectedNode.value) {
+    ElMessage.warning('请先选择一个数据预处理节点')
+    return
+  }
+  
+  const columns = upstreamColumns.value
+  if (columns.length === 0) {
+    ElMessage.warning('请先连接上游数据集节点')
+    return
+  }
+  
+  // 重置表单
+  columnCombineForm.newColumnName = ''
+  columnCombineForm.columns = []
+  columnCombineForm.combineMethod = 'concat'
+  columnCombineForm.separator = ''
+  
+  // 打开配置对话框
+  showColumnCombineDialog.value = true
+}
+
+// 确认列组合配置
+const confirmColumnCombineConfig = () => {
+  // 验证输入
+  if (!columnCombineForm.newColumnName.trim()) {
+    ElMessage.warning('请输入新列名')
+    return
+  }
+  if (columnCombineForm.columns.length === 0) {
+    ElMessage.warning('请选择至少一列')
+    return
+  }
+  if (columnCombineForm.columns.length < 2 && columnCombineForm.combineMethod !== 'concat') {
+    ElMessage.warning('数学组合方式需要至少选择两列')
+    return
+  }
+  
+  // 添加到已应用步骤
+  const step = {
+    id: 'column_combine',
+    label: '列组合',
+    config: {
+      newColumnName: columnCombineForm.newColumnName.trim(),
+      columns: [...columnCombineForm.columns],
+      combineMethod: columnCombineForm.combineMethod,
+      separator: columnCombineForm.separator || ' '
+    }
+  }
+  
+  // 检查是否已存在相同的步骤
+  const existingIndex = appliedPreprocessSteps.value.findIndex(s => s.id === 'column_combine')
+  if (existingIndex > -1) {
+    appliedPreprocessSteps.value[existingIndex] = step
+  } else {
+    appliedPreprocessSteps.value.push(step)
+  }
+  
+  ElMessage.success('列组合配置已应用')
+  showColumnCombineDialog.value = false
+}
+
+// 列类型转换配置对话框状态
+const showTypeConversionDialog = ref(false)
+const typeConversionForm = reactive({
+  conversionType: 'to_numeric',
+  columns: [],
+  dateFormat: '%Y-%m-%d %H:%M:%S',
+  errorHandling: 'coerce',
+  defaultValue: 0
+})
+
+// 处理列类型转换操作
+const handleTypeConversion = () => {
+  if (!selectedNode.value) {
+    ElMessage.warning('请先选择一个数据预处理节点')
+    return
+  }
+  
+  const columns = upstreamColumns.value
+  if (columns.length === 0) {
+    ElMessage.warning('请先连接上游数据集节点')
+    return
+  }
+  
+  // 重置表单
+  typeConversionForm.conversionType = 'to_numeric'
+  typeConversionForm.columns = []
+  typeConversionForm.dateFormat = '%Y-%m-%d %H:%M:%S'
+  typeConversionForm.errorHandling = 'coerce'
+  typeConversionForm.defaultValue = 0
+  
+  // 打开配置对话框
+  showTypeConversionDialog.value = true
+}
+
+// 确认列类型转换配置
+const confirmTypeConversionConfig = () => {
+  // 验证输入
+  if (typeConversionForm.columns.length === 0) {
+    ElMessage.warning('请选择至少一列')
+    return
+  }
+  if (typeConversionForm.conversionType === 'to_datetime' && !typeConversionForm.dateFormat.trim()) {
+    ElMessage.warning('请输入日期时间格式')
+    return
+  }
+  
+  // 构建配置
+  const config = {
+    conversionType: typeConversionForm.conversionType,
+    columns: [...typeConversionForm.columns]
+  }
+  
+  if (typeConversionForm.conversionType === 'to_datetime') {
+    config.dateFormat = typeConversionForm.dateFormat.trim()
+  } else if (typeConversionForm.conversionType === 'to_numeric') {
+    config.errorHandling = typeConversionForm.errorHandling
+    if (typeConversionForm.errorHandling === 'default') {
+      config.defaultValue = typeConversionForm.defaultValue
+    }
+  }
+  
+  // 添加到已应用步骤
+  const step = {
+    id: typeConversionForm.conversionType,
+    label: typeConversionForm.conversionType === 'to_numeric' ? '转数值型' : 
+           typeConversionForm.conversionType === 'to_string' ? '转字符串' : '转日期时间',
+    config: config
+  }
+  
+  // 检查是否已存在相同的步骤
+  const existingIndex = appliedPreprocessSteps.value.findIndex(s => s.id === typeConversionForm.conversionType)
+  if (existingIndex > -1) {
+    appliedPreprocessSteps.value[existingIndex] = step
+  } else {
+    appliedPreprocessSteps.value.push(step)
+  }
+  
+  ElMessage.success('列类型转换配置已应用')
+  showTypeConversionDialog.value = false
+}
+
+// 列转向量配置对话框状态
+const showToVectorDialog = ref(false)
+const toVectorForm = reactive({
+  encodingType: 'one_hot',
+  columns: [],
+  prefix: '',
+  maxFeatures: 100
+})
+
+// 处理列转向量操作
+const handleToVector = () => {
+  if (!selectedNode.value) {
+    ElMessage.warning('请先选择一个数据预处理节点')
+    return
+  }
+  
+  const columns = upstreamColumns.value
+  if (columns.length === 0) {
+    ElMessage.warning('请先连接上游数据集节点')
+    return
+  }
+  
+  // 重置表单
+  toVectorForm.encodingType = 'one_hot'
+  toVectorForm.columns = []
+  toVectorForm.prefix = ''
+  toVectorForm.maxFeatures = 100
+  
+  // 打开配置对话框
+  showToVectorDialog.value = true
+}
+
+// 确认列转向量配置
+const confirmToVectorConfig = () => {
+  // 验证输入
+  if (toVectorForm.columns.length === 0) {
+    ElMessage.warning('请选择至少一列')
+    return
+  }
+  
+  // 构建配置
+  const config = {
+    encodingType: toVectorForm.encodingType,
+    columns: [...toVectorForm.columns]
+  }
+  
+  if (toVectorForm.encodingType === 'one_hot') {
+    config.prefix = toVectorForm.prefix
+  } else if (toVectorForm.encodingType === 'tfidf') {
+    config.maxFeatures = toVectorForm.maxFeatures
+  }
+  
+  // 添加到已应用步骤
+  const step = {
+    id: toVectorForm.encodingType,
+    label: toVectorForm.encodingType === 'one_hot' ? 'One-Hot编码' : 
+           toVectorForm.encodingType === 'label_encode' ? 'Label编码' : 'TF-IDF',
+    config: config
+  }
+  
+  // 检查是否已存在相同的步骤
+  const existingIndex = appliedPreprocessSteps.value.findIndex(s => s.id === toVectorForm.encodingType)
+  if (existingIndex > -1) {
+    appliedPreprocessSteps.value[existingIndex] = step
+  } else {
+    appliedPreprocessSteps.value.push(step)
+  }
+  
+  ElMessage.success('列转向量配置已应用')
+  showToVectorDialog.value = false
+}
+
+// 列重排配置对话框状态
+const showReorderDialog = ref(false)
+const reorderForm = reactive({
+  reorderType: 'sort_by_column',
+  sortColumns: [],
+  sortOrder: 'asc',
+  moveColumns: [],
+  targetPosition: 0
+})
+
+// 处理列重排操作
+const handleReorder = () => {
+  if (!selectedNode.value) {
+    ElMessage.warning('请先选择一个数据预处理节点')
+    return
+  }
+  
+  const columns = upstreamColumns.value
+  if (columns.length === 0) {
+    ElMessage.warning('请先连接上游数据集节点')
+    return
+  }
+  
+  // 重置表单
+  reorderForm.reorderType = 'sort_by_column'
+  reorderForm.sortColumns = []
+  reorderForm.sortOrder = 'asc'
+  reorderForm.moveColumns = []
+  reorderForm.targetPosition = 0
+  
+  // 打开配置对话框
+  showReorderDialog.value = true
+}
+
+// 确认列重排配置
+const confirmReorderConfig = () => {
+  // 验证输入
+  if (reorderForm.reorderType === 'sort_by_column' && reorderForm.sortColumns.length === 0) {
+    ElMessage.warning('请选择至少一列进行排序')
+    return
+  }
+  if (reorderForm.reorderType === 'move_column' && reorderForm.moveColumns.length === 0) {
+    ElMessage.warning('请选择至少一列进行移动')
+    return
+  }
+  
+  // 构建配置
+  const config = {
+    reorderType: reorderForm.reorderType
+  }
+  
+  if (reorderForm.reorderType === 'sort_by_column') {
+    config.sortColumns = [...reorderForm.sortColumns]
+    config.sortOrder = reorderForm.sortOrder
+  } else if (reorderForm.reorderType === 'move_column') {
+    config.moveColumns = [...reorderForm.moveColumns]
+    config.targetPosition = reorderForm.targetPosition
+  }
+  
+  // 添加到已应用步骤
+  const step = {
+    id: reorderForm.reorderType,
+    label: reorderForm.reorderType === 'sort_by_column' ? '排序' : '移动列',
+    config: config
+  }
+  
+  // 检查是否已存在相同的步骤
+  const existingIndex = appliedPreprocessSteps.value.findIndex(s => s.id === reorderForm.reorderType)
+  if (existingIndex > -1) {
+    appliedPreprocessSteps.value[existingIndex] = step
+  } else {
+    appliedPreprocessSteps.value.push(step)
+  }
+  
+  ElMessage.success('列重排配置已应用')
+  showReorderDialog.value = false
+}
+
+// 删除配置对话框状态
+const showDeleteDialog = ref(false)
+const deleteForm = reactive({
+  deleteType: 'delete_rows',
+  conditionType: 'index_range',
+  startIndex: 0,
+  endIndex: 0,
+  conditionColumn: '',
+  operator: 'eq',
+  compareValue: '',
+  columns: [],
+  dropNaMethod: 'any'
+})
+
+// 处理删除操作
+const handleDelete = () => {
+  if (!selectedNode.value) {
+    ElMessage.warning('请先选择一个数据预处理节点')
+    return
+  }
+  
+  const columns = upstreamColumns.value
+  if (columns.length === 0) {
+    ElMessage.warning('请先连接上游数据集节点')
+    return
+  }
+  
+  // 重置表单
+  deleteForm.deleteType = 'delete_rows'
+  deleteForm.conditionType = 'index_range'
+  deleteForm.startIndex = 0
+  deleteForm.endIndex = 0
+  deleteForm.conditionColumn = ''
+  deleteForm.operator = 'eq'
+  deleteForm.compareValue = ''
+  deleteForm.columns = []
+  deleteForm.dropNaMethod = 'any'
+  
+  // 打开配置对话框
+  showDeleteDialog.value = true
+}
+
+// 确认删除配置
+const confirmDeleteConfig = () => {
+  // 验证输入
+  if (deleteForm.deleteType === 'delete_rows') {
+    if (deleteForm.conditionType === 'index_range') {
+      if (deleteForm.startIndex < 0 || deleteForm.endIndex < 0) {
+        ElMessage.warning('请输入有效的索引范围')
+        return
+      }
+      if (deleteForm.startIndex > deleteForm.endIndex) {
+        ElMessage.warning('起始索引不能大于结束索引')
+        return
+      }
+    } else if (deleteForm.conditionType === 'condition') {
+      if (!deleteForm.conditionColumn) {
+        ElMessage.warning('请选择条件列')
+        return
+      }
+      if (!deleteForm.compareValue && deleteForm.compareValue !== 0) {
+        ElMessage.warning('请输入比较值')
+        return
+      }
+    }
+  } else if (deleteForm.deleteType === 'delete_columns' && deleteForm.columns.length === 0) {
+    ElMessage.warning('请选择至少一列')
+    return
+  }
+  
+  // 构建配置
+  const config = {
+    deleteType: deleteForm.deleteType
+  }
+  
+  if (deleteForm.deleteType === 'delete_rows') {
+    config.conditionType = deleteForm.conditionType
+    if (deleteForm.conditionType === 'index_range') {
+      config.startIndex = deleteForm.startIndex
+      config.endIndex = deleteForm.endIndex
+    } else if (deleteForm.conditionType === 'condition') {
+      config.conditionColumn = deleteForm.conditionColumn
+      config.operator = deleteForm.operator
+      config.compareValue = deleteForm.compareValue
+    }
+  } else if (deleteForm.deleteType === 'delete_columns') {
+    config.columns = [...deleteForm.columns]
+  } else if (deleteForm.deleteType === 'drop_na') {
+    config.dropNaMethod = deleteForm.dropNaMethod
+  }
+  
+  // 添加到已应用步骤
+  const step = {
+    id: deleteForm.deleteType,
+    label: deleteForm.deleteType === 'delete_rows' ? '删除行' : 
+           deleteForm.deleteType === 'delete_columns' ? '删除列' : '删除缺失值',
+    config: config
+  }
+  
+  // 检查是否已存在相同的步骤
+  const existingIndex = appliedPreprocessSteps.value.findIndex(s => s.id === deleteForm.deleteType)
+  if (existingIndex > -1) {
+    appliedPreprocessSteps.value[existingIndex] = step
+  } else {
+    appliedPreprocessSteps.value.push(step)
+  }
+  
+  ElMessage.success('删除配置已应用')
+  showDeleteDialog.value = false
+}
+
+// 检查预处理是否已应用
+const isPreprocessApplied = (preprocessId) => {
+  return appliedPreprocessSteps.value.some(step => step.id === preprocessId)
+}
+
+// 删除已应用的预处理步骤
+const removePreprocessStep = (preprocessId) => {
+  ElMessageBox.confirm('确定要撤回这个预处理操作吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    const index = appliedPreprocessSteps.value.findIndex(step => step.id === preprocessId)
+    if (index > -1) {
+      const removedStep = appliedPreprocessSteps.value[index]
+      appliedPreprocessSteps.value.splice(index, 1)
+      ElMessage.success(`已撤回: ${removedStep.label}`)
+    }
+  }).catch(() => {
+    // 用户取消操作
+  })
 }
 
 // Run prediction for the model-predict node
@@ -2325,6 +3556,39 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.preprocess-tree-panel {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  
+  :deep(.el-tree-node) {
+    padding: 4px 0;
+  }
+  
+  :deep(.el-tree-node__content) {
+    height: 32px;
+    align-items: center;
+  }
+  
+  :deep(.el-tree-node.is-current > .el-tree-node__content) {
+    background-color: rgba(20, 184, 166, 0.2);
+    color: #14b8a6;
+  }
+  
+  :deep(.el-tree-node__expand-icon) {
+    color: rgba(255, 255, 255, 0.4);
+  }
+  
+  .custom-tree-node {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 }
 
 .component-item {
@@ -2942,5 +4206,61 @@ onUnmounted(() => {
 .slide-up-leave-to {
   transform: translateY(100%);
   opacity: 0;
+}
+
+// 预处理树形面板样式
+.preprocess-tree-panel {
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+
+  :deep(.el-tree) {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.85);
+
+    .el-tree-node__content {
+      height: 32px;
+      border-radius: 4px;
+
+      &:hover {
+        background: rgba(102, 126, 234, 0.2);
+      }
+    }
+
+    .el-tree-node__expand-icon {
+      color: rgba(255, 255, 255, 0.5);
+
+      &.is-leaf {
+        color: transparent;
+      }
+    }
+
+    .custom-tree-node {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      font-size: 14px;
+      flex-wrap: nowrap;
+      overflow: hidden;
+
+      .el-icon {
+        font-size: 16px;
+        color: #14b8a6;
+      }
+
+      .el-button {
+        flex-shrink: 0;
+        padding: 4px;
+        height: auto;
+      }
+    }
+
+    .el-tree-node.is-current > .el-tree-node__content {
+      background: rgba(102, 126, 234, 0.3);
+    }
+  }
 }
 </style>

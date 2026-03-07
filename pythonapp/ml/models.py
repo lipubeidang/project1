@@ -6,11 +6,16 @@ from pydantic import BaseModel
 from typing import Optional, List, Any, Dict
 
 
+class PreprocessRequest(BaseModel):
+    dataset_id: str
+    preprocess_steps: List[Dict[str, Any]] = []
+
 class SelectFeaturesRequest(BaseModel):
     dataset_id: str
     feature_cols: List[str]
     target_col: str
     task_type: str = "classification"
+    preprocess_steps: List[Dict[str, Any]] = []
 
 
 class TrainRequest(BaseModel):

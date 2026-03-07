@@ -44,6 +44,9 @@ export const mlApi = {
   },
 
   // ── ML Pipeline ──
+  preprocess(data) {
+    return client.post('/ml/preprocess', data)
+  },
   selectFeatures(data) {
     return client.post('/ml/select-features', data)
   },

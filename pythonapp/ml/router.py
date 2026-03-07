@@ -18,7 +18,7 @@ from .store import (
     model_store,
     task_store,
 )
-from .models import SelectFeaturesRequest, TrainRequest, PredictRequest
+from .models import SelectFeaturesRequest, TrainRequest, PredictRequest, PreprocessRequest
 
 router = APIRouter(prefix="/ml", tags=["ML Pipeline"])
 
@@ -87,6 +87,403 @@ async def cleanup_session_endpoint(session_id: str):
 # ── Feature Selection ─────────────────────────────────────────────────────────
 
 
+
+@router.post("/preprocess")
+async def preprocess_data(
+    req: PreprocessRequest,
+    x_session_id: str = Header(...),
+):
+    try:
+        df = load_dataset(x_session_id, req.dataset_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="数据集不存在")
+
+    warnings = []
+    
+    for step in req.preprocess_steps:
+        if step["id"] == "group_by_column":
+            config = step.get("config", {})
+            group_columns = config.get("columns", [])
+            aggregate_function = config.get("aggregateFunction", "sum")
+            aggregate_columns = config.get("aggregateColumns", [])
+            
+            # 验证分组列和聚合列
+            missing_group_cols = [c for c in group_columns if c not in df.columns]
+            if missing_group_cols:
+                raise HTTPException(status_code=400, detail=f"分组列不存在: {missing_group_cols}")
+            
+            missing_agg_cols = [c for c in aggregate_columns if c not in df.columns]
+            if missing_agg_cols:
+                raise HTTPException(status_code=400, detail=f"聚合列不存在: {missing_agg_cols}")
+            
+            # 执行分组和聚合
+            try:
+                # 构建聚合字典
+                agg_dict = {col: aggregate_function for col in aggregate_columns}
+                # 如果目标列不在分组列或聚合列中，需要保留目标列
+                target_col = req.target_col
+                target_col_added = False
+                if target_col not in group_columns and target_col not in aggregate_columns:
+                    # 对目标列使用平均值聚合
+                    agg_dict[target_col] = "mean"
+                    target_col_added = True
+                # 确保至少有一个聚合列
+                if not agg_dict:
+                    raise HTTPException(status_code=400, detail="请至少选择一个聚合列")
+                # 执行分组
+                df = df.groupby(group_columns).agg(agg_dict).reset_index()
+                # 展平多级列名（如果存在）
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = [' '.join(col).strip() if isinstance(col, tuple) else col for col in df.columns.values]
+                # 如果自动添加了目标列，添加提醒
+                if target_col_added:
+                    warnings.append(f"目标列 '{target_col}' 已自动加入聚合（使用平均值）")
+            except Exception as e:
+                if isinstance(e, HTTPException):
+                    raise e
+                raise HTTPException(status_code=400, detail=f"按列分组失败: {str(e)}")
+        
+        elif step["id"] == "aggregate_stats":
+            config = step.get("config", {})
+            group_columns = config.get("groupColumns", [])
+            stats_columns = config.get("statsColumns", [])
+            stats_functions = config.get("statsFunctions", [])
+            
+            # 验证统计列
+            missing_stats_cols = [c for c in stats_columns if c not in df.columns]
+            if missing_stats_cols:
+                raise HTTPException(status_code=400, detail=f"统计列不存在: {missing_stats_cols}")
+            
+            # 验证分组列（可选）
+            if group_columns:
+                missing_group_cols = [c for c in group_columns if c not in df.columns]
+                if missing_group_cols:
+                    raise HTTPException(status_code=400, detail=f"分组列不存在: {missing_group_cols}")
+            
+            # 执行聚合统计
+            try:
+                # 构建聚合字典，每个统计列可以有多个统计函数
+                agg_dict = {}
+                for col in stats_columns:
+                    agg_dict[col] = stats_functions
+                
+                # 如果目标列不在统计列中，需要保留目标列
+                target_col = req.target_col
+                target_col_added = False
+                if target_col not in stats_columns and target_col not in group_columns:
+                    # 对目标列使用平均值聚合
+                    agg_dict[target_col] = ["mean"]
+                    target_col_added = True
+                
+                # 确保至少有一个统计列
+                if not agg_dict:
+                    raise HTTPException(status_code=400, detail="请至少选择一个统计列")
+                
+                # 如果没有分组列，对整个数据集进行统计
+                if group_columns:
+                    # 按分组列分组后统计
+                    df = df.groupby(group_columns).agg(agg_dict).reset_index()
+                    # 展平多级列名
+                    if isinstance(df.columns, pd.MultiIndex):
+                        df.columns = [' '.join(col).strip() if isinstance(col, tuple) else col for col in df.columns.values]
+                else:
+                    # 对整个数据集进行统计
+                    result = {}
+                    for col in stats_columns:
+                        for func in stats_functions:
+                            col_name = f"{col}_{func}"
+                            if func == "count":
+                                result[col_name] = [df[col].count()]
+                            elif func == "sum":
+                                result[col_name] = [df[col].sum()]
+                            elif func == "mean":
+                                result[col_name] = [df[col].mean()]
+                            elif func == "median":
+                                result[col_name] = [df[col].median()]
+                            elif func == "std":
+                                result[col_name] = [df[col].std()]
+                            elif func == "min":
+                                result[col_name] = [df[col].min()]
+                            elif func == "max":
+                                result[col_name] = [df[col].max()]
+                    # 添加目标列的统计
+                    if target_col_added:
+                        result[f"{target_col}_mean"] = [df[target_col].mean()]
+                    df = pd.DataFrame(result)
+                
+                # 如果自动添加了目标列，添加提醒
+                if target_col_added:
+                    warnings.append(f"目标列 '{target_col}' 已自动加入统计（使用平均值）")
+            except Exception as e:
+                if isinstance(e, HTTPException):
+                    raise e
+                raise HTTPException(status_code=400, detail=f"聚合统计失败: {str(e)}")
+        
+        elif step["id"] == "math_calc":
+            config = step.get("config", {})
+            new_column_name = config.get("newColumnName", "")
+            calc_type = config.get("calcType", "binary")
+            column1 = config.get("column1", "")
+            column2 = config.get("column2", "")
+            operator = config.get("operator", "+")
+            constant_value = config.get("constantValue", 0)
+            
+            # 验证列存在
+            if column1 not in df.columns:
+                raise HTTPException(status_code=400, detail=f"列不存在: {column1}")
+            if calc_type == "binary" and column2 not in df.columns:
+                raise HTTPException(status_code=400, detail=f"列不存在: {column2}")
+            
+            # 执行数学计算
+            try:
+                if calc_type == "binary":
+                    # 两列运算
+                    if operator == "+":
+                        df[new_column_name] = df[column1] + df[column2]
+                    elif operator == "-":
+                        df[new_column_name] = df[column1] - df[column2]
+                    elif operator == "*":
+                        df[new_column_name] = df[column1] * df[column2]
+                    elif operator == "/":
+                        df[new_column_name] = df[column1] / df[column2]
+                    elif operator == "**":
+                        df[new_column_name] = df[column1] ** df[column2]
+                elif calc_type == "unary":
+                    # 单列运算
+                    if operator == "square":
+                        df[new_column_name] = df[column1] ** 2
+                    elif operator == "sqrt":
+                        df[new_column_name] = np.sqrt(df[column1])
+                    elif operator == "log":
+                        df[new_column_name] = np.log(df[column1])
+                    elif operator == "log10":
+                        df[new_column_name] = np.log10(df[column1])
+                    elif operator == "abs":
+                        df[new_column_name] = np.abs(df[column1])
+                    elif operator == "round":
+                        df[new_column_name] = np.round(df[column1])
+                elif calc_type == "constant":
+                    # 常量运算
+                    if operator == "+":
+                        df[new_column_name] = df[column1] + constant_value
+                    elif operator == "-":
+                        df[new_column_name] = df[column1] - constant_value
+                    elif operator == "*":
+                        df[new_column_name] = df[column1] * constant_value
+                    elif operator == "/":
+                        df[new_column_name] = df[column1] / constant_value
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"数学计算失败: {str(e)}")
+        
+        elif step["id"] == "column_combine":
+            config = step.get("config", {})
+            new_column_name = config.get("newColumnName", "")
+            columns = config.get("columns", [])
+            combine_method = config.get("combineMethod", "concat")
+            separator = config.get("separator", " ")
+            
+            # 验证列存在
+            missing_cols = [c for c in columns if c not in df.columns]
+            if missing_cols:
+                raise HTTPException(status_code=400, detail=f"列不存在: {missing_cols}")
+            
+            # 执行列组合
+            try:
+                if combine_method == "concat":
+                    # 字符串拼接
+                    df[new_column_name] = df[columns].astype(str).agg(separator.join, axis=1)
+                elif combine_method == "sum":
+                    # 求和
+                    df[new_column_name] = df[columns].sum(axis=1)
+                elif combine_method == "mean":
+                    # 平均值
+                    df[new_column_name] = df[columns].mean(axis=1)
+                elif combine_method == "product":
+                    # 乘积
+                    df[new_column_name] = df[columns].prod(axis=1)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"列组合失败: {str(e)}")
+        
+        elif step["id"] in ["to_numeric", "to_string", "to_datetime"]:
+            config = step.get("config", {})
+            conversion_type = step["id"]
+            columns = config.get("columns", [])
+            
+            # 验证列存在
+            missing_cols = [c for c in columns if c not in df.columns]
+            if missing_cols:
+                raise HTTPException(status_code=400, detail=f"列不存在: {missing_cols}")
+            
+            # 执行列类型转换
+            try:
+                for col in columns:
+                    if conversion_type == "to_numeric":
+                        # 转数值型
+                        error_handling = config.get("errorHandling", "coerce")
+                        if error_handling == "ignore":
+                            # 忽略错误，保持原值
+                            df[col] = pd.to_numeric(df[col], errors="ignore")
+                        elif error_handling == "coerce":
+                            # 无效值设为NaN
+                            df[col] = pd.to_numeric(df[col], errors="coerce")
+                        elif error_handling == "default":
+                            # 无效值设为默认值
+                            default_value = config.get("defaultValue", 0)
+                            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(default_value)
+                    elif conversion_type == "to_string":
+                        # 转字符串
+                        df[col] = df[col].astype(str)
+                    elif conversion_type == "to_datetime":
+                        # 转日期时间
+                        date_format = config.get("dateFormat", "%Y-%m-%d %H:%M:%S")
+                        df[col] = pd.to_datetime(df[col], format=date_format, errors="coerce")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"列类型转换失败: {str(e)}")
+        
+        elif step["id"] in ["one_hot", "label_encode", "tfidf"]:
+            config = step.get("config", {})
+            encoding_type = step["id"]
+            columns = config.get("columns", [])
+            
+            # 验证列存在
+            missing_cols = [c for c in columns if c not in df.columns]
+            if missing_cols:
+                raise HTTPException(status_code=400, detail=f"列不存在: {missing_cols}")
+            
+            # 执行列转向量
+            try:
+                if encoding_type == "one_hot":
+                    # One-Hot编码
+                    prefix = config.get("prefix", "")
+                    df_encoded = pd.get_dummies(df[columns], prefix=prefix)
+                    # 删除原始列，添加编码后的列
+                    df = pd.concat([df.drop(columns=columns), df_encoded], axis=1)
+                elif encoding_type == "label_encode":
+                    # Label编码
+                    for col in columns:
+                        df[col] = pd.factorize(df[col])[0]
+                elif encoding_type == "tfidf":
+                    # TF-IDF编码
+                    from sklearn.feature_extraction.text import TfidfVectorizer
+                    
+                    max_features = config.get("maxFeatures", 100)
+                    for col in columns:
+                        # 将列转换为字符串
+                        text_data = df[col].astype(str)
+                        # 创建TF-IDF向量化器
+                        vectorizer = TfidfVectorizer(max_features=max_features)
+                        # 拟合并转换文本数据
+                        tfidf_matrix = vectorizer.fit_transform(text_data)
+                        # 将稀疏矩阵转换为DataFrame
+                        tfidf_df = pd.DataFrame(tfidf_matrix.toarray(), 
+                                                   columns=[f"{col}_tfidf_{i}" for i in range(tfidf_matrix.shape[1])])
+                        # 删除原始列，添加TF-IDF编码后的列
+                        df = pd.concat([df.drop(columns=[col]), tfidf_df], axis=1)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"列转向量失败: {str(e)}")
+        
+        elif step["id"] in ["sort_by_column", "move_column"]:
+            config = step.get("config", {})
+            reorder_type = step["id"]
+            
+            # 执行列重排
+            try:
+                if reorder_type == "sort_by_column":
+                    # 按列排序
+                    sort_columns = config.get("sortColumns", [])
+                    sort_order = config.get("sortOrder", "asc")
+                    ascending = sort_order == "asc"
+                    df = df.sort_values(by=sort_columns, ascending=ascending)
+                elif reorder_type == "move_column":
+                    # 移动列
+                    move_columns = config.get("moveColumns", [])
+                    target_position = config.get("targetPosition", 0)
+                    
+                    # 获取所有列名
+                    all_columns = list(df.columns)
+                    
+                    # 移除要移动的列
+                    for col in move_columns:
+                        if col in all_columns:
+                            all_columns.remove(col)
+                    
+                    # 在目标位置插入移动的列
+                    for i, col in enumerate(move_columns):
+                        if col in df.columns:
+                            insert_pos = min(target_position + i, len(all_columns))
+                            all_columns.insert(insert_pos, col)
+                    
+                    # 重新排列DataFrame的列
+                    df = df[all_columns]
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"列重排失败: {str(e)}")
+        
+        elif step["id"] in ["delete_rows", "delete_columns", "drop_na"]:
+            config = step.get("config", {})
+            delete_type = step["id"]
+            
+            # 执行删除操作
+            try:
+                if delete_type == "delete_rows":
+                    # 删除行
+                    condition_type = config.get("conditionType", "index_range")
+                    if condition_type == "index_range":
+                        # 按索引范围删除
+                        start_index = config.get("startIndex", 0)
+                        end_index = config.get("endIndex", len(df) - 1)
+                        df = df.drop(df.index[start_index:end_index + 1])
+                    elif condition_type == "condition":
+                        # 按条件删除
+                        condition_column = config.get("conditionColumn", "")
+                        operator = config.get("operator", "eq")
+                        compare_value = config.get("compareValue", "")
+                        
+                        # 构建条件
+                        if operator == "eq":
+                            condition = df[condition_column] == compare_value
+                        elif operator == "ne":
+                            condition = df[condition_column] != compare_value
+                        elif operator == "gt":
+                            condition = df[condition_column] > compare_value
+                        elif operator == "lt":
+                            condition = df[condition_column] < compare_value
+                        elif operator == "ge":
+                            condition = df[condition_column] >= compare_value
+                        elif operator == "le":
+                            condition = df[condition_column] <= compare_value
+                        else:
+                            condition = False
+                        
+                        df = df[~condition]
+                elif delete_type == "delete_columns":
+                    # 删除列
+                    columns_to_delete = config.get("columns", [])
+                    df = df.drop(columns=columns_to_delete)
+                elif delete_type == "drop_na":
+                    # 删除缺失值
+                    drop_na_method = config.get("dropNaMethod", "any")
+                    if drop_na_method == "any":
+                        # 删除所有包含缺失值的行
+                        df = df.dropna()
+                    elif drop_na_method == "all":
+                        # 删除全部为缺失值的行
+                        df = df.dropna(how="all")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"删除操作失败: {str(e)}")
+
+    # Save preprocessed dataset
+    dataset_id = save_dataset(x_session_id, df)
+    columns = [{"name": c, "dtype": str(df[c].dtype)} for c in df.columns]
+
+    return {
+        "dataset_id": dataset_id,
+        "row_count": len(df),
+        "col_count": len(df.columns),
+        "columns": columns,
+        "preview": df.head(5).to_dict("records"),
+        "warnings": warnings
+    }
+
 @router.post("/select-features")
 async def select_features(
     req: SelectFeaturesRequest,
@@ -96,6 +493,381 @@ async def select_features(
         df = load_dataset(x_session_id, req.dataset_id)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="数据集不存在")
+
+    # 初始化警告列表
+    warnings = []
+
+    # 应用预处理步骤
+    for step in req.preprocess_steps:
+        if step["id"] == "group_by_column":
+            config = step.get("config", {})
+            group_columns = config.get("columns", [])
+            aggregate_function = config.get("aggregateFunction", "sum")
+            aggregate_columns = config.get("aggregateColumns", [])
+            
+            # 验证分组列和聚合列
+            missing_group_cols = [c for c in group_columns if c not in df.columns]
+            if missing_group_cols:
+                raise HTTPException(status_code=400, detail=f"分组列不存在: {missing_group_cols}")
+            
+            missing_agg_cols = [c for c in aggregate_columns if c not in df.columns]
+            if missing_agg_cols:
+                raise HTTPException(status_code=400, detail=f"聚合列不存在: {missing_agg_cols}")
+            
+            # 执行分组和聚合
+            try:
+                # 构建聚合字典
+                agg_dict = {col: aggregate_function for col in aggregate_columns}
+                # 如果目标列不在分组列或聚合列中，需要保留目标列
+                target_col = req.target_col
+                target_col_added = False
+                if target_col not in group_columns and target_col not in aggregate_columns:
+                    # 对目标列使用平均值聚合
+                    agg_dict[target_col] = "mean"
+                    target_col_added = True
+                # 确保至少有一个聚合列
+                if not agg_dict:
+                    raise HTTPException(status_code=400, detail="请至少选择一个聚合列")
+                # 执行分组
+                df = df.groupby(group_columns).agg(agg_dict).reset_index()
+                # 展平多级列名（如果存在）
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = [' '.join(col).strip() if isinstance(col, tuple) else col for col in df.columns.values]
+                # 如果自动添加了目标列，添加提醒
+                if target_col_added:
+                    warnings.append(f"目标列 '{target_col}' 已自动加入聚合（使用平均值）")
+            except Exception as e:
+                if isinstance(e, HTTPException):
+                    raise e
+                raise HTTPException(status_code=400, detail=f"按列分组失败: {str(e)}")
+        
+        elif step["id"] == "aggregate_stats":
+            config = step.get("config", {})
+            group_columns = config.get("groupColumns", [])
+            stats_columns = config.get("statsColumns", [])
+            stats_functions = config.get("statsFunctions", [])
+            
+            # 验证统计列
+            missing_stats_cols = [c for c in stats_columns if c not in df.columns]
+            if missing_stats_cols:
+                raise HTTPException(status_code=400, detail=f"统计列不存在: {missing_stats_cols}")
+            
+            # 验证分组列（可选）
+            if group_columns:
+                missing_group_cols = [c for c in group_columns if c not in df.columns]
+                if missing_group_cols:
+                    raise HTTPException(status_code=400, detail=f"分组列不存在: {missing_group_cols}")
+            
+            # 执行聚合统计
+            try:
+                # 构建聚合字典，每个统计列可以有多个统计函数
+                agg_dict = {}
+                for col in stats_columns:
+                    agg_dict[col] = stats_functions
+                
+                # 如果目标列不在统计列中，需要保留目标列
+                target_col = req.target_col
+                target_col_added = False
+                if target_col not in stats_columns and target_col not in group_columns:
+                    # 对目标列使用平均值聚合
+                    agg_dict[target_col] = ["mean"]
+                    target_col_added = True
+                
+                # 确保至少有一个统计列
+                if not agg_dict:
+                    raise HTTPException(status_code=400, detail="请至少选择一个统计列")
+                
+                # 如果没有分组列，对整个数据集进行统计
+                if group_columns:
+                    # 按分组列分组后统计
+                    df = df.groupby(group_columns).agg(agg_dict).reset_index()
+                    # 展平多级列名
+                    if isinstance(df.columns, pd.MultiIndex):
+                        df.columns = [' '.join(col).strip() if isinstance(col, tuple) else col for col in df.columns.values]
+                else:
+                    # 对整个数据集进行统计
+                    result = {}
+                    for col in stats_columns:
+                        for func in stats_functions:
+                            col_name = f"{col}_{func}"
+                            if func == "count":
+                                result[col_name] = [df[col].count()]
+                            elif func == "sum":
+                                result[col_name] = [df[col].sum()]
+                            elif func == "mean":
+                                result[col_name] = [df[col].mean()]
+                            elif func == "median":
+                                result[col_name] = [df[col].median()]
+                            elif func == "std":
+                                result[col_name] = [df[col].std()]
+                            elif func == "min":
+                                result[col_name] = [df[col].min()]
+                            elif func == "max":
+                                result[col_name] = [df[col].max()]
+                    # 添加目标列的统计
+                    if target_col_added:
+                        result[f"{target_col}_mean"] = [df[target_col].mean()]
+                    df = pd.DataFrame(result)
+                
+                # 如果自动添加了目标列，添加提醒
+                if target_col_added:
+                    warnings.append(f"目标列 '{target_col}' 已自动加入统计（使用平均值）")
+            except Exception as e:
+                if isinstance(e, HTTPException):
+                    raise e
+                raise HTTPException(status_code=400, detail=f"聚合统计失败: {str(e)}")
+        
+        elif step["id"] == "math_calc":
+            config = step.get("config", {})
+            new_column_name = config.get("newColumnName", "")
+            calc_type = config.get("calcType", "binary")
+            column1 = config.get("column1", "")
+            column2 = config.get("column2", "")
+            operator = config.get("operator", "+")
+            constant_value = config.get("constantValue", 0)
+            
+            # 验证列存在
+            if column1 not in df.columns:
+                raise HTTPException(status_code=400, detail=f"列不存在: {column1}")
+            if calc_type == "binary" and column2 not in df.columns:
+                raise HTTPException(status_code=400, detail=f"列不存在: {column2}")
+            
+            # 执行数学计算
+            try:
+                if calc_type == "binary":
+                    # 两列运算
+                    if operator == "+":
+                        df[new_column_name] = df[column1] + df[column2]
+                    elif operator == "-":
+                        df[new_column_name] = df[column1] - df[column2]
+                    elif operator == "*":
+                        df[new_column_name] = df[column1] * df[column2]
+                    elif operator == "/":
+                        df[new_column_name] = df[column1] / df[column2]
+                    elif operator == "**":
+                        df[new_column_name] = df[column1] ** df[column2]
+                elif calc_type == "unary":
+                    # 单列运算
+                    if operator == "square":
+                        df[new_column_name] = df[column1] ** 2
+                    elif operator == "sqrt":
+                        df[new_column_name] = np.sqrt(df[column1])
+                    elif operator == "log":
+                        df[new_column_name] = np.log(df[column1])
+                    elif operator == "log10":
+                        df[new_column_name] = np.log10(df[column1])
+                    elif operator == "abs":
+                        df[new_column_name] = np.abs(df[column1])
+                    elif operator == "round":
+                        df[new_column_name] = np.round(df[column1])
+                elif calc_type == "constant":
+                    # 常量运算
+                    if operator == "+":
+                        df[new_column_name] = df[column1] + constant_value
+                    elif operator == "-":
+                        df[new_column_name] = df[column1] - constant_value
+                    elif operator == "*":
+                        df[new_column_name] = df[column1] * constant_value
+                    elif operator == "/":
+                        df[new_column_name] = df[column1] / constant_value
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"数学计算失败: {str(e)}")
+        
+        elif step["id"] == "column_combine":
+            config = step.get("config", {})
+            new_column_name = config.get("newColumnName", "")
+            columns = config.get("columns", [])
+            combine_method = config.get("combineMethod", "concat")
+            separator = config.get("separator", " ")
+            
+            # 验证列存在
+            missing_cols = [c for c in columns if c not in df.columns]
+            if missing_cols:
+                raise HTTPException(status_code=400, detail=f"列不存在: {missing_cols}")
+            
+            # 执行列组合
+            try:
+                if combine_method == "concat":
+                    # 字符串拼接
+                    df[new_column_name] = df[columns].astype(str).agg(separator.join, axis=1)
+                elif combine_method == "sum":
+                    # 求和
+                    df[new_column_name] = df[columns].sum(axis=1)
+                elif combine_method == "mean":
+                    # 平均值
+                    df[new_column_name] = df[columns].mean(axis=1)
+                elif combine_method == "product":
+                    # 乘积
+                    df[new_column_name] = df[columns].prod(axis=1)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"列组合失败: {str(e)}")
+        
+        elif step["id"] in ["to_numeric", "to_string", "to_datetime"]:
+            config = step.get("config", {})
+            conversion_type = step["id"]
+            columns = config.get("columns", [])
+            
+            # 验证列存在
+            missing_cols = [c for c in columns if c not in df.columns]
+            if missing_cols:
+                raise HTTPException(status_code=400, detail=f"列不存在: {missing_cols}")
+            
+            # 执行列类型转换
+            try:
+                for col in columns:
+                    if conversion_type == "to_numeric":
+                        # 转数值型
+                        error_handling = config.get("errorHandling", "coerce")
+                        if error_handling == "ignore":
+                            # 忽略错误，保持原值
+                            df[col] = pd.to_numeric(df[col], errors="ignore")
+                        elif error_handling == "coerce":
+                            # 无效值设为NaN
+                            df[col] = pd.to_numeric(df[col], errors="coerce")
+                        elif error_handling == "default":
+                            # 无效值设为默认值
+                            default_value = config.get("defaultValue", 0)
+                            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(default_value)
+                    elif conversion_type == "to_string":
+                        # 转字符串
+                        df[col] = df[col].astype(str)
+                    elif conversion_type == "to_datetime":
+                        # 转日期时间
+                        date_format = config.get("dateFormat", "%Y-%m-%d %H:%M:%S")
+                        df[col] = pd.to_datetime(df[col], format=date_format, errors="coerce")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"列类型转换失败: {str(e)}")
+        
+        elif step["id"] in ["one_hot", "label_encode", "tfidf"]:
+            config = step.get("config", {})
+            encoding_type = step["id"]
+            columns = config.get("columns", [])
+            
+            # 验证列存在
+            missing_cols = [c for c in columns if c not in df.columns]
+            if missing_cols:
+                raise HTTPException(status_code=400, detail=f"列不存在: {missing_cols}")
+            
+            # 执行列转向量
+            try:
+                if encoding_type == "one_hot":
+                    # One-Hot编码
+                    prefix = config.get("prefix", "")
+                    df_encoded = pd.get_dummies(df[columns], prefix=prefix)
+                    # 删除原始列，添加编码后的列
+                    df = pd.concat([df.drop(columns=columns), df_encoded], axis=1)
+                elif encoding_type == "label_encode":
+                    # Label编码
+                    for col in columns:
+                        df[col] = pd.factorize(df[col])[0]
+                elif encoding_type == "tfidf":
+                    # TF-IDF编码
+                    from sklearn.feature_extraction.text import TfidfVectorizer
+                    
+                    max_features = config.get("maxFeatures", 100)
+                    for col in columns:
+                        # 将列转换为字符串
+                        text_data = df[col].astype(str)
+                        # 创建TF-IDF向量化器
+                        vectorizer = TfidfVectorizer(max_features=max_features)
+                        # 拟合并转换文本数据
+                        tfidf_matrix = vectorizer.fit_transform(text_data)
+                        # 将稀疏矩阵转换为DataFrame
+                        tfidf_df = pd.DataFrame(tfidf_matrix.toarray(), 
+                                                   columns=[f"{col}_tfidf_{i}" for i in range(tfidf_matrix.shape[1])])
+                        # 删除原始列，添加TF-IDF编码后的列
+                        df = pd.concat([df.drop(columns=[col]), tfidf_df], axis=1)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"列转向量失败: {str(e)}")
+        
+        elif step["id"] in ["sort_by_column", "move_column"]:
+            config = step.get("config", {})
+            reorder_type = step["id"]
+            
+            # 执行列重排
+            try:
+                if reorder_type == "sort_by_column":
+                    # 按列排序
+                    sort_columns = config.get("sortColumns", [])
+                    sort_order = config.get("sortOrder", "asc")
+                    ascending = sort_order == "asc"
+                    df = df.sort_values(by=sort_columns, ascending=ascending)
+                elif reorder_type == "move_column":
+                    # 移动列
+                    move_columns = config.get("moveColumns", [])
+                    target_position = config.get("targetPosition", 0)
+                    
+                    # 获取所有列名
+                    all_columns = list(df.columns)
+                    
+                    # 移除要移动的列
+                    for col in move_columns:
+                        if col in all_columns:
+                            all_columns.remove(col)
+                    
+                    # 在目标位置插入移动的列
+                    for i, col in enumerate(move_columns):
+                        if col in df.columns:
+                            insert_pos = min(target_position + i, len(all_columns))
+                            all_columns.insert(insert_pos, col)
+                    
+                    # 重新排列DataFrame的列
+                    df = df[all_columns]
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"列重排失败: {str(e)}")
+        
+        elif step["id"] in ["delete_rows", "delete_columns", "drop_na"]:
+            config = step.get("config", {})
+            delete_type = step["id"]
+            
+            # 执行删除操作
+            try:
+                if delete_type == "delete_rows":
+                    # 删除行
+                    condition_type = config.get("conditionType", "index_range")
+                    if condition_type == "index_range":
+                        # 按索引范围删除
+                        start_index = config.get("startIndex", 0)
+                        end_index = config.get("endIndex", len(df) - 1)
+                        df = df.drop(df.index[start_index:end_index + 1])
+                    elif condition_type == "condition":
+                        # 按条件删除
+                        condition_column = config.get("conditionColumn", "")
+                        operator = config.get("operator", "eq")
+                        compare_value = config.get("compareValue", "")
+                        
+                        # 构建条件
+                        if operator == "eq":
+                            condition = df[condition_column] == compare_value
+                        elif operator == "ne":
+                            condition = df[condition_column] != compare_value
+                        elif operator == "gt":
+                            condition = df[condition_column] > compare_value
+                        elif operator == "lt":
+                            condition = df[condition_column] < compare_value
+                        elif operator == "ge":
+                            condition = df[condition_column] >= compare_value
+                        elif operator == "le":
+                            condition = df[condition_column] <= compare_value
+                        else:
+                            condition = False
+                        
+                        df = df[~condition]
+                elif delete_type == "delete_columns":
+                    # 删除列
+                    columns_to_delete = config.get("columns", [])
+                    df = df.drop(columns=columns_to_delete)
+                elif delete_type == "drop_na":
+                    # 删除缺失值
+                    drop_na_method = config.get("dropNaMethod", "any")
+                    if drop_na_method == "any":
+                        # 删除所有包含缺失值的行
+                        df = df.dropna()
+                    elif drop_na_method == "all":
+                        # 删除全部为缺失值的行
+                        df = df.dropna(how="all")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"删除操作失败: {str(e)}")
 
     all_cols = req.feature_cols + [req.target_col]
     missing = [c for c in all_cols if c not in df.columns]
@@ -107,7 +879,6 @@ async def select_features(
     subset = subset.dropna()
     dropped = original_count - len(subset)
 
-    warnings = []
     if dropped > 0:
         warnings.append(f"移除了 {dropped} 行含空值的数据")
 
@@ -174,6 +945,7 @@ def _get_model(task_type: str, model_type: str, hp: dict):
             ),
             "gradient_boosting": lambda: GradientBoostingClassifier(
                 n_estimators=hp.get("n_estimators", 100),
+                learning_rate=hp.get("learning_rate", 0.1),
                 max_depth=hp.get("max_depth", 3),
                 random_state=rs,
             ),
@@ -195,6 +967,7 @@ def _get_model(task_type: str, model_type: str, hp: dict):
 
             "gradient_boosting": lambda: GradientBoostingRegressor(
                 n_estimators=hp.get("n_estimators", 100),
+                learning_rate=hp.get("learning_rate", 0.1),
                 max_depth=hp.get("max_depth", 3),
                 random_state=rs,
             ),
