@@ -2410,16 +2410,14 @@ const handleDragOver = (e) => {
   e.dataTransfer.dropEffect = 'copy'
 }
 
-// 设置拖放事件监听器
+// 设置拖放事件监听器（使用捕获阶段，确保 LogicFlow 内部子元素上的拖放也能被处理）
 const setupDropListeners = () => {
-  if (canvasRef.value) {
-    // 先移除旧的监听器（如果存在），避免重复绑定
-    canvasRef.value.removeEventListener('drop', onDrop)
-    canvasRef.value.removeEventListener('dragover', handleDragOver)
-    // 重新绑定
-    canvasRef.value.addEventListener('drop', onDrop)
-    canvasRef.value.addEventListener('dragover', handleDragOver)
-  }
+  const container = canvasRef.value
+  if (!container) return
+  container.removeEventListener('drop', onDrop, true)
+  container.removeEventListener('dragover', handleDragOver, true)
+  container.addEventListener('dragover', handleDragOver, true)
+  container.addEventListener('drop', onDrop, true)
 }
 
 // 拖放到画布
@@ -2436,7 +2434,11 @@ const onDrop = (e) => {
 
   // getPointByClient 返回画布模型坐标，addNode 需要的就是这个坐标系
   const point = lf.value.getPointByClient(e.clientX, e.clientY)
-  const canvasPos = point.canvasOverlayPosition || { x: point.x, y: point.y }
+  const raw = point.canvasOverlayPosition || point
+  const canvasPos = {
+    x: typeof raw?.x === 'number' && !Number.isNaN(raw.x) ? raw.x : 100,
+    y: typeof raw?.y === 'number' && !Number.isNaN(raw.y) ? raw.y : 100
+  }
 
   // 创建带颜色的节点
   const nodeId = 'node_' + Date.now()
@@ -4493,8 +4495,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (canvasRef.value) {
-    canvasRef.value.removeEventListener('drop', onDrop)
-    canvasRef.value.removeEventListener('dragover', handleDragOver)
+    canvasRef.value.removeEventListener('drop', onDrop, true)
+    canvasRef.value.removeEventListener('dragover', handleDragOver, true)
   }
   if (beforeUnloadHandler) {
     window.removeEventListener('beforeunload', beforeUnloadHandler)
