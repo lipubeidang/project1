@@ -2100,8 +2100,8 @@ const initLogicFlow = async () => {
     
     class ColorNodeModel extends HtmlNodeModel {
       setAttributes() {
-        this.width = 140
-        this.height = 40
+        this.width = 200
+        this.height = 32
         this.text.editable = false
         this.text.value = ''
       }
@@ -5308,12 +5308,12 @@ onUnmounted(() => {
   }
 }
 
-/* 自定义节点样式 - 白底、浅蓝边框、左侧图标、中间名称、右侧状态（与参考图一致） */
+/* 自定义节点样式 - 白底、浅蓝边框、左侧图标、中间名称、右侧状态；长一点、扁一点、字可完整显示 */
 :global(.custom-node) {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  min-width: 140px;
+  min-width: 200px;
   height: 100%;
   cursor: move;
   transition: all 0.2s ease;
@@ -5325,10 +5325,10 @@ onUnmounted(() => {
 :global(.custom-node.custom-node-card) {
   background: #f0f9ff;
   border: 1px solid #bae6fd;
-  border-radius: 8px;
-  padding: 8px 12px;
-  gap: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+  padding: 5px 10px;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 :global(.custom-node.custom-node-card:hover) {
@@ -5338,8 +5338,8 @@ onUnmounted(() => {
 }
 
 :global(.custom-node .node-icon-wrap) {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -5353,7 +5353,7 @@ onUnmounted(() => {
 
 :global(.custom-node .node-label) {
   flex: 1;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   color: #334155;
@@ -5361,22 +5361,23 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: center;
+  min-width: 0;
 }
 
 :global(.custom-node .node-status-wrap) {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 :global(.custom-node .node-status) {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 10px;
+  line-height: 14px;
   text-align: center;
   font-weight: 600;
 }
