@@ -1,0 +1,34 @@
+{
+  "name": "enum-config-server",
+  "version": "1.0.0",
+  "description": "极简配置服务器 - 用于管理模板枚举配置",
+  "main": "config-server.js",
+  "scripts": {
+    "start": "node config-server.js",
+    "dev": "nodemon config-server.js"
+  },
+  "keywords": [
+    "config",
+    "api",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
+
+
+
+
+
+
+
+
+
+

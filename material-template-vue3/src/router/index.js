@@ -72,6 +72,18 @@ const routes = [
     meta: { requiresAuth: true, transition: 'slide' }
   },
   {
+    path: '/template/statistic',
+    name: 'DataStatistic',
+    component: () => import('@/views/template/DataStatistic.vue'),
+    meta: { requiresAuth: true, transition: 'slide' }
+  },
+  {
+    path: '/template/search',
+    name: 'DataSearch',
+    component: () => import('@/views/template/DataSearch.vue'),
+    meta: { requiresAuth: true, transition: 'slide' }
+  },
+  {
     path: '/profile',
     name: 'Profile',
     component: () => import('@/views/Profile.vue'),
@@ -81,6 +93,18 @@ const routes = [
     path: '/algorithm',
     name: 'AlgorithmHome',
     component: () => import('@/views/algorithm/WorkspaceHome.vue'),
+    meta: { requiresAuth: true, transition: 'slide' }
+  },
+  {
+    path: '/algorithm/chat',
+    name: 'Chat',
+    component: () => import('@/views/algorithm/Chat.vue'),
+    meta: { requiresAuth: true, transition: 'slide' }
+  },
+  {
+    path: '/algorithm/sinter-curve',
+    name: 'SinterCurveRecommend',
+    component: () => import('@/views/algorithm/SinterCurveRecommend.vue'),
     meta: { requiresAuth: true, transition: 'slide' }
   },
   // 模版管理中心路由

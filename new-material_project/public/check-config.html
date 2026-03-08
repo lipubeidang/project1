@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快速检查工具</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #f5f7fa;
+        }
+        h1 {
+            color: #409EFF;
+            text-align: center;
+        }
+        .instruction {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
+        }
+        .instruction h2 {
+            color: #303133;
+            margin-top: 0;
+        }
+        .instruction ol {
+            line-height: 2;
+        }
+        .command-box {
+            background: #f4f4f5;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            margin: 10px 0;
+            border-left: 4px solid #409EFF;
+        }
+        .result-area {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
+            min-height: 200px;
+        }
+        button {
+            background: #409EFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #66b1ff;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        pre {
+            background: #f4f4f5;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success { color: #67C23A; font-weight: bold; }
+        .error { color: #F56C6C; font-weight: bold; }
+        .warning { color: #E6A23C; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🔍 枚举配置快速检查</h1>
+
+    <div class="instruction">
+        <h2>📋 请按以下步骤操作：</h2>
+        <ol>
+            <li>打开您的应用页面（保持在"在线填写数据"对话框打开状态）</li>
+            <li>按 <span class="highlight">F12</span> 打开浏览器开发者工具</li>
+            <li>切换到 <span class="highlight">Console（控制台）</span> 标签</li>
+            <li>向上滚动查找这些关键信息：</li>
+        </ol>
+
+        <div class="command-box">
+找到这些日志：<br>
+📋 模板ID: XXXXX<br>
+💾 从localStorage加载的枚举配置: {...}<br>
+📊 解析后的columnInfo: {...}<br>
+========== processFieldsWithEnum ==========
+        </div>
+
+        <p><strong>特别注意：</strong></p>
+        <ul>
+            <li>记录 <span class="highlight">📋 模板ID</span> 后面的数字</li>
+            <li>查看 <span class="highlight">💾 从localStorage加载的枚举配置</span> 是否为空对象 <code>{}</code></li>
+            <li>在 <span class="highlight">processFieldsWithEnum</span> 部分，查看字段匹配过程</li>
+        </ul>
+    </div>
+
+    <div class="instruction">
+        <h2>🔧 或者使用这个检查工具：</h2>
+        <button onclick="checkConfig()">一键检查配置</button>
+        <button onclick="copyToClipboard()">复制结果</button>
+        <div id="result" class="result-area"></div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'template_enum_configs';
+
+        function checkConfig() {
+            const resultDiv = document.getElementById('result');
+            let html = '<h3>检查结果：</h3>';
+
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (!data) {
+                    html += '<p class="error">❌ localStorage中没有任何枚举配置！</p>';
+                    html += '<p>这是主要问题！配置没有被保存。</p>';
+                    resultDiv.innerHTML = html;
+                    return;
+                }
+
+                const configs = JSON.parse(data);
+                const moduleIds = Object.keys(configs);
+
+                if (moduleIds.length === 0) {
+                    html += '<p class="error">❌ 配置对象为空！</p>';
+                    resultDiv.innerHTML = html;
+                    return;
+                }
+
+                html += `<p class="success">✅ 找到 ${moduleIds.length} 个模板的配置</p>`;
+                html += '<hr>';
+
+                // 详细显示每个模板的配置
+                moduleIds.forEach(moduleId => {
+                    const config = configs[moduleId];
+                    html += `<div style="border: 2px solid #409EFF; padding: 15px; margin: 15px 0; border-radius: 8px;">`;
+                    html += `<h4>📝 模板ID: <span class="highlight">${moduleId}</span></h4>`;
+                    html += `<p><strong>保存时间：</strong> ${config.timestamp || '未知'}</p>`;
+
+                    ['object', 'operation', 'result'].forEach(section => {
+                        if (config[section]) {
+                            const sectionConfig = config[section];
+                            const keys = Object.keys(sectionConfig);
+                            
+                            if (keys.length > 0) {
+                                html += `<h5>📁 ${section} 区域 (${keys.length} 个配置项):</h5>`;
+                                html += '<ul>';
+
+                                // 收集唯一的字段
+                                const fields = new Map();
+                                keys.forEach(key => {
+                                    const item = sectionConfig[key];
+                                    if (item.fieldName && !fields.has(item.fieldName)) {
+                                        fields.set(item.fieldName, item);
+                                    }
+                                });
+
+                                fields.forEach((item, fieldName) => {
+                                    html += `<li><strong>${fieldName}</strong>: `;
+                                    if (item.options && item.options.length > 0) {
+                                        html += item.options.map(opt => 
+                                            `<span style="background:#e1f3d8;padding:2px 6px;margin:0 2px;border-radius:3px;">${opt.label}: ${opt.value}</span>`
+                                        ).join(', ');
+                                    } else {
+                                        html += '<span class="error">无选项！</span>';
+                                    }
+                                    html += '</li>';
+                                });
+
+                                html += '</ul>';
+
+                                // 显示所有的键
+                                html += `<details><summary style="cursor:pointer;color:#909399;">查看所有配置键（点击展开）</summary>`;
+                                html += '<pre>' + keys.join('\n') + '</pre>';
+                                html += '</details>';
+                            }
+                        }
+                    });
+
+                    html += '</div>';
+                });
+
+                html += '<hr>';
+                html += '<h3>🎯 下一步：</h3>';
+                html += '<ol>';
+                html += '<li>复制上面显示的 <span class="highlight">模板ID</span></li>';
+                html += '<li>在您的应用中，查看控制台日志中的 <code>📋 模板ID: XXXXX</code></li>';
+                html += '<li>对比两个ID是否一致</li>';
+                html += '<li class="warning">如果ID不一致，说明选择的模板和保存的配置不匹配！</li>';
+                html += '</ol>';
+
+            } catch (error) {
+                html += `<p class="error">❌ 检查失败: ${error.message}</p>`;
+            }
+
+            resultDiv.innerHTML = html;
+        }
+
+        function copyToClipboard() {
+            const resultDiv = document.getElementById('result');
+            const text = resultDiv.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('结果已复制到剪贴板！');
+            }).catch(err => {
+                alert('复制失败: ' + err);
+            });
+        }
+
+        // 页面加载时自动检查
+        window.onload = checkConfig;
+    </script>
+</body>
+</html>
+
+

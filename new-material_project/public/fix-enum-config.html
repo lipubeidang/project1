@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>修复枚举配置工具</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            padding: 30px;
+            max-width: 900px;
+            margin: 0 auto;
+            background: #f5f7fa;
+        }
+        h1 {
+            color: #409EFF;
+            text-align: center;
+        }
+        .section {
+            background: #fff;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
+        }
+        .input-group {
+            margin: 15px 0;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #606266;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #409EFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #66b1ff;
+        }
+        button.danger {
+            background: #F56C6C;
+        }
+        button.danger:hover {
+            background: #f78989;
+        }
+        button.success {
+            background: #67C23A;
+        }
+        button.success:hover {
+            background: #85ce61;
+        }
+        .result {
+            background: #f4f4f5;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success { color: #67C23A; font-weight: bold; }
+        .error { color: #F56C6C; font-weight: bold; }
+        .warning { color: #E6A23C; font-weight: bold; }
+        .info { color: #409EFF; font-weight: bold; }
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 修复枚举配置ID工具</h1>
+
+    <div class="section">
+        <h2>📋 当前问题</h2>
+        <p>由于后端返回的模板ID与保存时使用的ID不一致，导致枚举配置无法正确加载。</p>
+        <p>这个工具可以帮您将错误的ID替换为正确的ID。</p>
+    </div>
+
+    <div class="section">
+        <h2>🔍 步骤1: 查看当前配置</h2>
+        <button onclick="showCurrentConfigs()">查看所有配置</button>
+        <div id="currentConfigs" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>🔄 步骤2: 修复ID映射</h2>
+        <div class="input-group">
+            <label>错误的ID（localStorage中保存的）:</label>
+            <input type="text" id="oldId" placeholder="例如: 1761289235780">
+        </div>
+        <div class="input-group">
+            <label>正确的ID（实际的模板ID）:</label>
+            <input type="text" id="newId" placeholder="在您的应用控制台中查找 📋 模板ID">
+        </div>
+        <button class="success" onclick="fixConfigId()">修复配置</button>
+        <div id="fixResult" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="section">
+        <h2>🗑️ 步骤3: 清理（可选）</h2>
+        <p class="warning">⚠️ 以下操作将永久删除数据，请谨慎使用！</p>
+        <div class="input-group">
+            <label>要删除的模板ID:</label>
+            <input type="text" id="deleteId" placeholder="输入要删除的ID">
+        </div>
+        <button class="danger" onclick="deleteConfig()">删除指定配置</button>
+        <button class="danger" onclick="clearAll()">清空所有配置</button>
+        <div id="deleteResult" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'template_enum_configs';
+
+        function showCurrentConfigs() {
+            const resultDiv = document.getElementById('currentConfigs');
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (!data) {
+                    resultDiv.innerHTML = '<p class="error">❌ 没有找到任何配置</p>';
+                    return;
+                }
+
+                const configs = JSON.parse(data);
+                const moduleIds = Object.keys(configs);
+
+                if (moduleIds.length === 0) {
+                    resultDiv.innerHTML = '<p class="error">❌ 配置为空</p>';
+                    return;
+                }
+
+                let html = `<p class="info">找到 ${moduleIds.length} 个模板配置：</p>\n\n`;
+                
+                moduleIds.forEach(id => {
+                    const config = configs[id];
+                    html += `模板ID: ${id}\n`;
+                    html += `保存时间: ${config.timestamp || '未知'}\n`;
+                    
+                    ['object', 'operation', 'result'].forEach(section => {
+                        if (config[section] && Object.keys(config[section]).length > 0) {
+                            const fields = new Set();
+                            Object.values(config[section]).forEach(item => {
+                                if (item.fieldName) fields.add(item.fieldName);
+                            });
+                            html += `  ${section}: ${Array.from(fields).join(', ')}\n`;
+                        }
+                    });
+                    html += '\n';
+                });
+
+                resultDiv.innerHTML = html;
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ 读取失败: ${error.message}</p>`;
+            }
+        }
+
+        function fixConfigId() {
+            const oldId = document.getElementById('oldId').value.trim();
+            const newId = document.getElementById('newId').value.trim();
+            const resultDiv = document.getElementById('fixResult');
+            resultDiv.style.display = 'block';
+
+            if (!oldId || !newId) {
+                resultDiv.innerHTML = '<p class="error">❌ 请填写完整的ID</p>';
+                return;
+            }
+
+            if (oldId === newId) {
+                resultDiv.innerHTML = '<p class="warning">⚠️ 两个ID相同，无需修复</p>';
+                return;
+            }
+
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (!data) {
+                    resultDiv.innerHTML = '<p class="error">❌ 没有找到任何配置</p>';
+                    return;
+                }
+
+                const configs = JSON.parse(data);
+
+                if (!configs[oldId]) {
+                    resultDiv.innerHTML = `<p class="error">❌ 找不到ID为 ${oldId} 的配置</p>`;
+                    return;
+                }
+
+                // 复制配置到新ID
+                configs[newId] = configs[oldId];
+                
+                // 删除旧ID
+                delete configs[oldId];
+
+                // 保存
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(configs));
+
+                resultDiv.innerHTML = `<p class="success">✅ 修复成功！</p>
+<p>已将配置从 ID: ${oldId} 迁移到 ID: ${newId}</p>
+<p class="info">请刷新您的应用页面，然后重新打开"在线填写数据"测试。</p>`;
+
+                // 刷新显示
+                showCurrentConfigs();
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ 修复失败: ${error.message}</p>`;
+            }
+        }
+
+        function deleteConfig() {
+            const deleteId = document.getElementById('deleteId').value.trim();
+            const resultDiv = document.getElementById('deleteResult');
+            resultDiv.style.display = 'block';
+
+            if (!deleteId) {
+                resultDiv.innerHTML = '<p class="error">❌ 请输入要删除的ID</p>';
+                return;
+            }
+
+            if (!confirm(`确定要删除模板ID为 ${deleteId} 的配置吗？`)) {
+                return;
+            }
+
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (!data) {
+                    resultDiv.innerHTML = '<p class="error">❌ 没有找到任何配置</p>';
+                    return;
+                }
+
+                const configs = JSON.parse(data);
+
+                if (!configs[deleteId]) {
+                    resultDiv.innerHTML = `<p class="error">❌ 找不到ID为 ${deleteId} 的配置</p>`;
+                    return;
+                }
+
+                delete configs[deleteId];
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(configs));
+
+                resultDiv.innerHTML = `<p class="success">✅ 已删除ID为 ${deleteId} 的配置</p>`;
+                showCurrentConfigs();
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ 删除失败: ${error.message}</p>`;
+            }
+        }
+
+        function clearAll() {
+            if (!confirm('⚠️ 确定要清空所有枚举配置吗？此操作不可恢复！')) {
+                return;
+            }
+
+            if (!confirm('⚠️⚠️ 再次确认：这将删除所有模板的枚举配置！')) {
+                return;
+            }
+
+            const resultDiv = document.getElementById('deleteResult');
+            resultDiv.style.display = 'block';
+
+            localStorage.removeItem(STORAGE_KEY);
+            resultDiv.innerHTML = '<p class="success">✅ 已清空所有配置</p>';
+            showCurrentConfigs();
+        }
+
+        // 页面加载时自动显示当前配置
+        window.onload = showCurrentConfigs;
+    </script>
+</body>
+</html>
+
+

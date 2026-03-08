@@ -1,0 +1,993 @@
+{
+  "_metadata": {
+    "version": "1.0.0",
+    "description": "模板枚举配置存储文件 - 所有模板的枚举选项都保存在这里",
+    "lastUpdated": "2026-03-06T09:40:32.172Z",
+    "note": "此文件由系统自动管理，支持多用户并发访问"
+  },
+  "templates": {
+    "31": {
+      "object": {},
+      "operation": {
+        "field_0_1": {
+          "fieldName": "1",
+          "originalFieldName": "1",
+          "normalizedName": "1",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "11"
+            },
+            {
+              "label": "B",
+              "value": "22"
+            }
+          ]
+        },
+        "name_1": {
+          "fieldName": "1",
+          "originalFieldName": "1",
+          "normalizedName": "1",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "11"
+            },
+            {
+              "label": "B",
+              "value": "22"
+            }
+          ]
+        },
+        "normalized_1": {
+          "fieldName": "1",
+          "originalFieldName": "1",
+          "normalizedName": "1",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "11"
+            },
+            {
+              "label": "B",
+              "value": "22"
+            }
+          ]
+        }
+      },
+      "result": {},
+      "timestamp": "2025-12-11T04:46:48.280Z",
+      "lastModified": "2025-12-11T04:46:48.458Z"
+    },
+    "123": {
+      "object": {},
+      "operation": {},
+      "result": {},
+      "timestamp": "2026-03-06T09:38:58.596Z",
+      "lastModified": "2026-03-06T09:38:58.861Z"
+    },
+    "123123": {
+      "object": {
+        "field_0_": {
+          "fieldName": "",
+          "originalFieldName": "",
+          "normalizedName": "",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": ""
+            }
+          ]
+        },
+        "name_": {
+          "fieldName": "",
+          "originalFieldName": "",
+          "normalizedName": "",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": ""
+            }
+          ]
+        },
+        "normalized_": {
+          "fieldName": "",
+          "originalFieldName": "",
+          "normalizedName": "",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": ""
+            }
+          ]
+        }
+      },
+      "operation": {},
+      "result": {},
+      "timestamp": "2025-11-13T03:42:09.903Z",
+      "lastModified": "2025-11-13T03:42:09.909Z"
+    },
+    "测试1110": {
+      "object": {
+        "field_0_123": {
+          "fieldName": "123",
+          "options": [
+            {
+              "label": "A",
+              "value": "AAAAAA"
+            },
+            {
+              "label": "B",
+              "value": "BBBBB"
+            },
+            {
+              "label": "C",
+              "value": "CCCCCCCC"
+            },
+            {
+              "label": "D",
+              "value": "23423"
+            },
+            {
+              "label": "E",
+              "value": "23324523423"
+            }
+          ]
+        },
+        "name_123": {
+          "fieldName": "123",
+          "originalFieldName": "123",
+          "normalizedName": "123",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "A"
+            },
+            {
+              "label": "B",
+              "value": "B"
+            }
+          ]
+        },
+        "normalized_123": {
+          "fieldName": "123",
+          "originalFieldName": "123",
+          "normalizedName": "123",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "A"
+            },
+            {
+              "label": "B",
+              "value": "B"
+            }
+          ]
+        }
+      },
+      "operation": {},
+      "result": {},
+      "timestamp": "2025-11-10T11:03:57.330Z",
+      "lastModified": "2025-11-27T05:41:40.639Z"
+    },
+    "测试1110 2": {
+      "object": {
+        "field_0_123": {
+          "fieldName": "123",
+          "originalFieldName": "123",
+          "normalizedName": "123",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "A"
+            },
+            {
+              "label": "B",
+              "value": "B"
+            }
+          ]
+        },
+        "name_123": {
+          "fieldName": "123",
+          "originalFieldName": "123",
+          "normalizedName": "123",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "A"
+            },
+            {
+              "label": "B",
+              "value": "B"
+            }
+          ]
+        },
+        "normalized_123": {
+          "fieldName": "123",
+          "originalFieldName": "123",
+          "normalizedName": "123",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "A"
+            },
+            {
+              "label": "B",
+              "value": "B"
+            }
+          ]
+        }
+      },
+      "operation": {},
+      "result": {},
+      "timestamp": "2025-11-10T11:04:10.520Z",
+      "lastModified": "2025-11-10T11:04:10.537Z"
+    },
+    "测试1113": {
+      "object": {},
+      "operation": {
+        "field_0_2": {
+          "fieldName": "2",
+          "originalFieldName": "2",
+          "normalizedName": "2",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "AAAA"
+            },
+            {
+              "label": "B",
+              "value": "BBBB"
+            },
+            {
+              "label": "C",
+              "value": "CCCC"
+            }
+          ]
+        },
+        "name_2": {
+          "fieldName": "2",
+          "originalFieldName": "2",
+          "normalizedName": "2",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "AAAA"
+            },
+            {
+              "label": "B",
+              "value": "BBBB"
+            },
+            {
+              "label": "C",
+              "value": "CCCC"
+            }
+          ]
+        },
+        "normalized_2": {
+          "fieldName": "2",
+          "originalFieldName": "2",
+          "normalizedName": "2",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "AAAA"
+            },
+            {
+              "label": "B",
+              "value": "BBBB"
+            },
+            {
+              "label": "C",
+              "value": "CCCC"
+            }
+          ]
+        }
+      },
+      "result": {},
+      "timestamp": "2025-11-13T04:31:18.500Z",
+      "lastModified": "2025-11-13T04:31:18.507Z"
+    },
+    "测试1113（1）": {
+      "object": {},
+      "operation": {
+        "field_0_123": {
+          "fieldName": "123",
+          "originalFieldName": "123",
+          "normalizedName": "123",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "AAA"
+            },
+            {
+              "label": "B",
+              "value": "BBB"
+            },
+            {
+              "label": "C",
+              "value": "CCC"
+            }
+          ]
+        },
+        "name_123": {
+          "fieldName": "123",
+          "originalFieldName": "123",
+          "normalizedName": "123",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "AAA"
+            },
+            {
+              "label": "B",
+              "value": "BBB"
+            },
+            {
+              "label": "C",
+              "value": "CCC"
+            }
+          ]
+        },
+        "normalized_123": {
+          "fieldName": "123",
+          "originalFieldName": "123",
+          "normalizedName": "123",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "AAA"
+            },
+            {
+              "label": "B",
+              "value": "BBB"
+            },
+            {
+              "label": "C",
+              "value": "CCC"
+            }
+          ]
+        }
+      },
+      "result": {},
+      "timestamp": "2025-11-13T04:36:50.676Z",
+      "lastModified": "2025-11-13T04:36:51.580Z"
+    },
+    "测试1113（2）": {
+      "object": {},
+      "operation": {},
+      "result": {},
+      "timestamp": "2025-11-13T04:57:59.231Z",
+      "lastModified": "2025-11-13T04:57:59.238Z"
+    },
+    "烧结曲线数据": {
+      "object": {
+        "field_2_TestSampleShape": {
+          "fieldName": "TestSampleShape",
+          "originalFieldName": "TestSampleShape",
+          "normalizedName": "testsampleshape",
+          "index": 2,
+          "options": [
+            {
+              "label": "A",
+              "value": "圆片"
+            },
+            {
+              "label": "B",
+              "value": "块体"
+            },
+            {
+              "label": "C",
+              "value": "薄膜"
+            },
+            {
+              "label": "D",
+              "value": "颗粒"
+            },
+            {
+              "label": "E",
+              "value": "微球"
+            },
+            {
+              "label": "F",
+              "value": "粉末"
+            },
+            {
+              "label": "G",
+              "value": "无定形"
+            },
+            {
+              "label": "H",
+              "value": "其它"
+            }
+          ]
+        },
+        "name_TestSampleShape": {
+          "fieldName": "TestSampleShape",
+          "originalFieldName": "TestSampleShape",
+          "normalizedName": "testsampleshape",
+          "index": 2,
+          "options": [
+            {
+              "label": "A",
+              "value": "圆片"
+            },
+            {
+              "label": "B",
+              "value": "块体"
+            },
+            {
+              "label": "C",
+              "value": "薄膜"
+            },
+            {
+              "label": "D",
+              "value": "颗粒"
+            },
+            {
+              "label": "E",
+              "value": "微球"
+            },
+            {
+              "label": "F",
+              "value": "粉末"
+            },
+            {
+              "label": "G",
+              "value": "无定形"
+            },
+            {
+              "label": "H",
+              "value": "其它"
+            }
+          ]
+        },
+        "normalized_testsampleshape": {
+          "fieldName": "TestSampleShape",
+          "originalFieldName": "TestSampleShape",
+          "normalizedName": "testsampleshape",
+          "index": 2,
+          "options": [
+            {
+              "label": "A",
+              "value": "圆片"
+            },
+            {
+              "label": "B",
+              "value": "块体"
+            },
+            {
+              "label": "C",
+              "value": "薄膜"
+            },
+            {
+              "label": "D",
+              "value": "颗粒"
+            },
+            {
+              "label": "E",
+              "value": "微球"
+            },
+            {
+              "label": "F",
+              "value": "粉末"
+            },
+            {
+              "label": "G",
+              "value": "无定形"
+            },
+            {
+              "label": "H",
+              "value": "其它"
+            }
+          ]
+        },
+        "field_3_SampleMorphology": {
+          "fieldName": "SampleMorphology",
+          "originalFieldName": "SampleMorphology",
+          "normalizedName": "samplemorphology",
+          "index": 3,
+          "options": [
+            {
+              "label": "A",
+              "value": "固体"
+            },
+            {
+              "label": "B",
+              "value": "水凝胶"
+            },
+            {
+              "label": "C",
+              "value": "液体"
+            },
+            {
+              "label": "D",
+              "value": "其它"
+            }
+          ]
+        },
+        "name_SampleMorphology": {
+          "fieldName": "SampleMorphology",
+          "originalFieldName": "SampleMorphology",
+          "normalizedName": "samplemorphology",
+          "index": 3,
+          "options": [
+            {
+              "label": "A",
+              "value": "固体"
+            },
+            {
+              "label": "B",
+              "value": "水凝胶"
+            },
+            {
+              "label": "C",
+              "value": "液体"
+            },
+            {
+              "label": "D",
+              "value": "其它"
+            }
+          ]
+        },
+        "normalized_samplemorphology": {
+          "fieldName": "SampleMorphology",
+          "originalFieldName": "SampleMorphology",
+          "normalizedName": "samplemorphology",
+          "index": 3,
+          "options": [
+            {
+              "label": "A",
+              "value": "固体"
+            },
+            {
+              "label": "B",
+              "value": "水凝胶"
+            },
+            {
+              "label": "C",
+              "value": "液体"
+            },
+            {
+              "label": "D",
+              "value": "其它"
+            }
+          ]
+        },
+        "field_4_poreStructure": {
+          "fieldName": "poreStructure",
+          "originalFieldName": "poreStructure",
+          "normalizedName": "porestructure",
+          "index": 4,
+          "options": [
+            {
+              "label": "A",
+              "value": "方孔"
+            },
+            {
+              "label": "B",
+              "value": "金刚石"
+            },
+            {
+              "label": "C",
+              "value": "体心立方"
+            },
+            {
+              "label": "D",
+              "value": "面心立方"
+            },
+            {
+              "label": "E",
+              "value": "体心顶角"
+            },
+            {
+              "label": "F",
+              "value": "面心顶角"
+            }
+          ]
+        },
+        "name_poreStructure": {
+          "fieldName": "poreStructure",
+          "originalFieldName": "poreStructure",
+          "normalizedName": "porestructure",
+          "index": 4,
+          "options": [
+            {
+              "label": "A",
+              "value": "方孔"
+            },
+            {
+              "label": "B",
+              "value": "金刚石"
+            },
+            {
+              "label": "C",
+              "value": "体心立方"
+            },
+            {
+              "label": "D",
+              "value": "面心立方"
+            },
+            {
+              "label": "E",
+              "value": "体心顶角"
+            },
+            {
+              "label": "F",
+              "value": "面心顶角"
+            }
+          ]
+        },
+        "normalized_porestructure": {
+          "fieldName": "poreStructure",
+          "originalFieldName": "poreStructure",
+          "normalizedName": "porestructure",
+          "index": 4,
+          "options": [
+            {
+              "label": "A",
+              "value": "方孔"
+            },
+            {
+              "label": "B",
+              "value": "金刚石"
+            },
+            {
+              "label": "C",
+              "value": "体心立方"
+            },
+            {
+              "label": "D",
+              "value": "面心立方"
+            },
+            {
+              "label": "E",
+              "value": "体心顶角"
+            },
+            {
+              "label": "F",
+              "value": "面心顶角"
+            }
+          ]
+        },
+        "field_12_SampleSize_Unit": {
+          "fieldName": "SampleSize_Unit",
+          "originalFieldName": "SampleSize_Unit",
+          "normalizedName": "samplesizeunit",
+          "index": 12,
+          "options": [
+            {
+              "label": "A",
+              "value": "mm"
+            },
+            {
+              "label": "B",
+              "value": "cm"
+            }
+          ]
+        },
+        "name_SampleSize_Unit": {
+          "fieldName": "SampleSize_Unit",
+          "originalFieldName": "SampleSize_Unit",
+          "normalizedName": "samplesizeunit",
+          "index": 12,
+          "options": [
+            {
+              "label": "A",
+              "value": "mm"
+            },
+            {
+              "label": "B",
+              "value": "cm"
+            }
+          ]
+        },
+        "normalized_samplesizeunit": {
+          "fieldName": "SampleSize_Unit",
+          "originalFieldName": "SampleSize_Unit",
+          "normalizedName": "samplesizeunit",
+          "index": 12,
+          "options": [
+            {
+              "label": "A",
+              "value": "mm"
+            },
+            {
+              "label": "B",
+              "value": "cm"
+            }
+          ]
+        },
+        "field_15_atmosphereType": {
+          "fieldName": "atmosphereType",
+          "originalFieldName": "atmosphereType",
+          "normalizedName": "atmospheretype",
+          "index": 15,
+          "options": [
+            {
+              "label": "A",
+              "value": "真空"
+            },
+            {
+              "label": "B",
+              "value": "空气"
+            },
+            {
+              "label": "C",
+              "value": "氯气"
+            },
+            {
+              "label": "D",
+              "value": "氩气"
+            },
+            {
+              "label": "E",
+              "value": "氮气"
+            },
+            {
+              "label": "F",
+              "value": "还原气氛"
+            }
+          ]
+        },
+        "name_atmosphereType": {
+          "fieldName": "atmosphereType",
+          "originalFieldName": "atmosphereType",
+          "normalizedName": "atmospheretype",
+          "index": 15,
+          "options": [
+            {
+              "label": "A",
+              "value": "真空"
+            },
+            {
+              "label": "B",
+              "value": "空气"
+            },
+            {
+              "label": "C",
+              "value": "氯气"
+            },
+            {
+              "label": "D",
+              "value": "氩气"
+            },
+            {
+              "label": "E",
+              "value": "氮气"
+            },
+            {
+              "label": "F",
+              "value": "还原气氛"
+            }
+          ]
+        },
+        "normalized_atmospheretype": {
+          "fieldName": "atmosphereType",
+          "originalFieldName": "atmosphereType",
+          "normalizedName": "atmospheretype",
+          "index": 15,
+          "options": [
+            {
+              "label": "A",
+              "value": "真空"
+            },
+            {
+              "label": "B",
+              "value": "空气"
+            },
+            {
+              "label": "C",
+              "value": "氯气"
+            },
+            {
+              "label": "D",
+              "value": "氩气"
+            },
+            {
+              "label": "E",
+              "value": "氮气"
+            },
+            {
+              "label": "F",
+              "value": "还原气氛"
+            }
+          ]
+        }
+      },
+      "operation": {},
+      "result": {},
+      "timestamp": "2025-11-16T02:35:10.662Z",
+      "lastModified": "2025-11-16T02:35:10.710Z"
+    },
+    "测试1210": {
+      "object": {},
+      "operation": {
+        "field_0_1": {
+          "fieldName": "1",
+          "options": [
+            {
+              "label": "A",
+              "value": "A"
+            },
+            {
+              "label": "B",
+              "value": "B"
+            }
+          ]
+        },
+        "name_1": {
+          "fieldName": "1",
+          "originalFieldName": "1",
+          "normalizedName": "1",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "AAA"
+            },
+            {
+              "label": "B",
+              "value": "AAA"
+            }
+          ]
+        },
+        "normalized_1": {
+          "fieldName": "1",
+          "originalFieldName": "1",
+          "normalizedName": "1",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "AAA"
+            },
+            {
+              "label": "B",
+              "value": "AAA"
+            }
+          ]
+        }
+      },
+      "result": {},
+      "timestamp": "2025-12-10T09:26:28.808Z",
+      "lastModified": "2025-12-11T04:52:59.707Z"
+    },
+    "测试1211": {
+      "object": {},
+      "operation": {
+        "field_1_333": {
+          "fieldName": "333",
+          "originalFieldName": "333",
+          "normalizedName": "333",
+          "index": 1,
+          "options": [
+            {
+              "label": "A",
+              "value": "231"
+            },
+            {
+              "label": "B",
+              "value": "213"
+            }
+          ]
+        },
+        "name_333": {
+          "fieldName": "333",
+          "originalFieldName": "333",
+          "normalizedName": "333",
+          "index": 1,
+          "options": [
+            {
+              "label": "A",
+              "value": "231"
+            },
+            {
+              "label": "B",
+              "value": "213"
+            }
+          ]
+        },
+        "normalized_333": {
+          "fieldName": "333",
+          "originalFieldName": "333",
+          "normalizedName": "333",
+          "index": 1,
+          "options": [
+            {
+              "label": "A",
+              "value": "231"
+            },
+            {
+              "label": "B",
+              "value": "213"
+            }
+          ]
+        }
+      },
+      "result": {},
+      "timestamp": "2025-12-11T02:57:00.092Z",
+      "lastModified": "2025-12-11T02:57:00.107Z"
+    },
+    "test1211": {
+      "object": {},
+      "operation": {
+        "field_0_形态": {
+          "fieldName": "形态",
+          "originalFieldName": "形态",
+          "normalizedName": "形态",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "固体"
+            },
+            {
+              "label": "B",
+              "value": "液体"
+            }
+          ]
+        },
+        "name_形态": {
+          "fieldName": "形态",
+          "originalFieldName": "形态",
+          "normalizedName": "形态",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "固体"
+            },
+            {
+              "label": "B",
+              "value": "液体"
+            }
+          ]
+        },
+        "normalized_形态": {
+          "fieldName": "形态",
+          "originalFieldName": "形态",
+          "normalizedName": "形态",
+          "index": 0,
+          "options": [
+            {
+              "label": "A",
+              "value": "固体"
+            },
+            {
+              "label": "B",
+              "value": "液体"
+            }
+          ]
+        }
+      },
+      "result": {},
+      "timestamp": "2025-12-11T06:10:10.559Z",
+      "lastModified": "2025-12-11T06:10:10.812Z"
+    },
+    "test": {
+      "object": {},
+      "operation": {},
+      "result": {},
+      "timestamp": "2026-03-06T09:40:31.856Z",
+      "lastModified": "2026-03-06T09:40:32.172Z"
+    }
+  }
+}

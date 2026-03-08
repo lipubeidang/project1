@@ -1,0 +1,374 @@
+/* 🚀 全局性能优化 - 确保60fps流畅动画 */
+
+/* 
+ * 关键优化说明（60fps黄金法则）：
+ * 1. 只使用 transform 和 opacity 属性做动画（GPU加速）
+ * 2. will-change 只在悬停时激活（避免过度使用内存）
+ * 3. 减少 backdrop-filter 使用（性能杀手）
+ * 4. 动画时长控制在 0.2s-0.3s 之间（更流畅）
+ * 5. 使用 transform: translate3d 强制GPU合成层
+ */
+
+/* 基础硬件加速 - 强制创建合成层 */
+.template-library-page,
+.template-create,
+.template-detail-page,
+.template-audit-page,
+.upload-data,
+.template-page {
+  /* 强制GPU硬件加速 */
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  -webkit-perspective: 1000px;
+  perspective: 1000px;
+  
+  /* 减少重绘和回流 */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+}
+
+/* 为有动画的元素开启硬件加速（默认不使用will-change） */
+.template-card,
+.card,
+.stat-item,
+.field-type-item,
+.field-item,
+.design-area,
+.template-info,
+.filter-section,
+.table-container,
+.sidebar,
+.content-area {
+  /* 强制GPU硬件加速 */
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  
+  /* 减少重绘 */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  
+  /* 优化渲染性能 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 只在悬停时启用will-change（60fps关键！避免内存浪费） */
+.template-card:hover,
+.card:hover,
+.stat-item:hover,
+.field-type-item:hover,
+.field-item:hover {
+  will-change: transform, box-shadow;
+}
+
+/* 按钮和交互元素 */
+.el-button,
+.radio-btn,
+.operation-buttons .el-button {
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* 按钮悬停时启用will-change */
+.el-button:hover,
+.radio-btn:hover,
+.operation-buttons .el-button:hover {
+  will-change: transform;
+}
+
+/* 表格行优化 - 使用contain提升性能 */
+.el-table tbody tr {
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  contain: layout style;
+}
+
+/* 表格行悬停时启用will-change */
+.el-table tbody tr:hover {
+  will-change: transform;
+}
+
+/* 树形控件优化 */
+.el-tree-node__content {
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  contain: layout style;
+}
+
+/* 树形控件悬停时启用will-change */
+.el-tree-node__content:hover {
+  will-change: transform;
+}
+
+/* 🎯 优化滚动性能 */
+.template-library-page,
+.template-create,
+.template-detail-page,
+.template-audit-page,
+.upload-data,
+.template-page {
+  /* 使用compositor滚动 */
+  -webkit-overflow-scrolling: touch;
+  /* 优化滚动性能 */
+  scroll-behavior: smooth;
+}
+
+/* 🎨 简化box-shadow以提升渲染性能（60fps关键） */
+/* 注意：多层box-shadow会严重影响性能，简化为单层 */
+.card:hover,
+.template-card:hover,
+.field-item:hover,
+.stat-item:hover {
+  /* 使用单层阴影替代多层，性能提升明显 */
+  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.22) !important;
+}
+
+.el-button:hover,
+.radio-btn:hover,
+.operation-buttons .el-button:hover {
+  /* 按钮悬停简化阴影 */
+  box-shadow: 0 5px 18px rgba(102, 126, 234, 0.3) !important;
+}
+
+/* 🚀 优化动画时长 - 控制在0.2s-0.25s之间（60fps黄金时长） */
+.template-card,
+.card,
+.field-item,
+.stat-item,
+.el-button,
+.radio-btn,
+.design-area,
+.template-info,
+.filter-section {
+  /* 只对transform和opacity做动画 */
+  transition-property: transform, opacity, box-shadow !important;
+  /* 动画时长优化到0.25s */
+  transition-duration: 0.25s !important;
+  /* 使用Material Design缓动函数（经过优化的） */
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 表格行过渡优化 - 更快的响应 */
+.el-table tbody tr {
+  transition-property: transform, background-color !important;
+  transition-duration: 0.2s !important;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 树形控件过渡优化 - 更快的响应 */
+.el-tree-node__content {
+  transition-property: transform, background-color !important;
+  transition-duration: 0.2s !important;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 🎯 禁用性能杀手backdrop-filter（改用半透明背景） */
+/* backdrop-filter会严重影响性能，降低到30fps以下 */
+.sidebar,
+.content-area,
+.template-info,
+.filter-section,
+.table-container,
+.tabs-container,
+.page-header,
+.audit-tabs,
+.container,
+.form-container,
+.design-container,
+.steps-nav,
+.field-types-toolbar,
+.design-area,
+.area-content,
+.enum-options-container,
+.section,
+.tree-section,
+.content-section,
+.content-header {
+  /* 移除backdrop-filter，使用更高的不透明度替代 */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  /* 使用实色背景替代毛玻璃效果 */
+  background: rgba(255, 255, 255, 0.98) !important;
+}
+
+/* 优化背景渐变动画 - 使用opacity而非background-position */
+/* background相关的动画会触发重绘，性能差 */
+@keyframes gradientShift {
+  0%, 100% { 
+    opacity: 1;
+  }
+  50% { 
+    opacity: 0.95;
+  }
+}
+
+/* 减少不必要的伪元素动画 */
+.template-library-page::before,
+.template-create::before,
+.template-detail-page::before,
+.template-audit-page::before,
+.upload-data::before,
+.template-page::before {
+  /* 静态背景，不需要动画 */
+  animation: none !important;
+  will-change: auto !important;
+}
+
+/* 使用requestAnimationFrame优化的动画 */
+@media (prefers-reduced-motion: reduce) {
+  /* 为偏好减少动画的用户优化 */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 针对低性能设备的优化 */
+@media (max-width: 768px) {
+  /* 移动设备简化动画 */
+  [class*="fade"],
+  [class*="slide"],
+  [class*="scale"] {
+    animation-duration: 0.3s !important;
+  }
+  
+  /* 减少阴影复杂度 */
+  .card,
+  .template-card,
+  .sidebar,
+  .content-area {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  }
+}
+
+/* 使用contain优化渲染性能 */
+.card,
+.template-card,
+.field-item,
+.stat-item {
+  contain: layout style paint;
+}
+
+/* 优化滚动条渲染 */
+::-webkit-scrollbar-thumb {
+  /* 使用transform而非background */
+  transform: translate3d(0, 0, 0);
+}
+
+/* 强制使用GPU合成的图层 */
+.template-info,
+.filter-section,
+.table-container,
+.audit-tabs,
+.page-header {
+  transform: translate3d(0, 0, 0);
+  will-change: auto;
+}
+
+/* 🎯 优化background动画 - 使用静态渐变替代动画渐变 */
+.template-library-page,
+.template-create,
+.template-detail-page,
+.template-audit-page,
+.upload-data,
+.template-page {
+  /* 使用静态渐变，不使用background-position动画 */
+  background-size: 100% 100% !important;
+  animation: none !important;
+  background-attachment: fixed;
+}
+
+/* 🚀 简化伪元素动画 */
+.card::before,
+.template-card::before,
+.field-item::before,
+.template-info::before,
+.filter-section::before {
+  animation: none !important;
+  transition: opacity 0.3s ease !important;
+}
+
+/* 🎨 减少同时运行的动画数量 */
+.statistics::before,
+.page-header::after,
+.content-header::after,
+.form-header::after,
+.design-header::after {
+  animation-play-state: paused !important;
+}
+
+/* 🔥 关键优化：限制阴影层数为1层 */
+.card,
+.template-card,
+.sidebar,
+.content-area,
+.form-container,
+.design-container,
+.container,
+.template-info,
+.filter-section,
+.table-container {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* 🎯 优化渐变 - 减少复杂度 */
+.card,
+.template-card,
+.content-area,
+.sidebar {
+  background: rgba(255, 255, 255, 0.98) !important;
+}
+
+/* 🚀 优化enum选项动画 */
+.enum-option-item,
+.field-type-item,
+.radio-btn {
+  transition-property: transform, box-shadow !important;
+  transition-duration: 0.2s !important;
+  transition-timing-function: ease-out !important;
+}
+
+/* 📊 优化表格性能 */
+.el-table {
+  contain: layout style;
+}
+
+.el-table__body-wrapper {
+  contain: layout style;
+}
+
+/* 🎯 移除不必要的:before/:after元素 */
+.area-content::before,
+.content-body::before,
+.container::before,
+.form-container::before,
+.design-container::before {
+  display: none !important;
+}
+
+/* ⚡ 60帧性能模式 */
+@media (max-width: 1366px) {
+  .card,
+  .template-card,
+  .field-item,
+  .stat-item {
+    transition-duration: 0.15s !important;
+  }
+  
+  *::before,
+  *::after {
+    animation: none !important;
+  }
+}
+

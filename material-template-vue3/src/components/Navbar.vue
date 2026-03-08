@@ -51,6 +51,14 @@
                 <el-icon><Upload /></el-icon>
                 上传数据
               </el-dropdown-item>
+              <el-dropdown-item command="/template/statistic" divided>
+                <el-icon><DataAnalysis /></el-icon>
+                数据统计
+              </el-dropdown-item>
+              <el-dropdown-item command="/template/search">
+                <el-icon><Search /></el-icon>
+                数据检索
+              </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -67,6 +75,14 @@
               <el-dropdown-item command="/algorithm">
                 <el-icon><Cpu /></el-icon>
                 工作空间
+              </el-dropdown-item>
+              <el-dropdown-item command="/algorithm/chat">
+                <el-icon><ChatLineRound /></el-icon>
+                智能对话
+              </el-dropdown-item>
+              <el-dropdown-item command="/algorithm/sinter-curve">
+                <el-icon><TrendCharts /></el-icon>
+                机器学习
               </el-dropdown-item>
               <el-dropdown-item command="/algorithm/training" disabled>
                 <el-icon><TrendCharts /></el-icon>
@@ -188,7 +204,7 @@ import {
   User, SwitchButton, ArrowDown, Checked, Folder,
   DataAnalysis, Cpu, TrendCharts, MagicStick,
   Reading, Document, Collection, EditPen,
-  Coin, Monitor, Box, PieChart, DataLine
+  Coin, Monitor, Box, PieChart, DataLine, ChatLineRound, Search
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
