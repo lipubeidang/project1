@@ -529,10 +529,24 @@
               </template>
 
               <!-- ── 模型选择 / 具体模型节点：仅弹窗配置 ── -->
-              <template v-if="selectedNode.properties.nodeType === 'model-select' || selectedNode.properties.nodeType === 'model-concrete'">
+              <template v-if="selectedNode.properties.nodeType === 'model-select'">
+                <el-form-item label="任务类型" required>
+                  <el-radio-group v-model="selectedNode.properties.taskType" @change="updateNodeProperty" style="margin-bottom: 12px">
+                    <el-radio-button value="classification">分类任务</el-radio-button>
+                    <el-radio-button value="regression">回归任务</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="模型参数配置">
+                  <el-button type="primary" style="width:100%" @click="showModelConfigDialog = true">
+                    在弹窗中配置具体模型
+                  </el-button>
+                </el-form-item>
+              </template>
+              
+              <template v-if="selectedNode.properties.nodeType === 'model-concrete'">
                 <el-form-item label="参数配置">
                   <el-button type="primary" style="width:100%" @click="showModelConfigDialog = true">
-                    在弹窗中配置
+                    在弹窗中配置具体参数
                   </el-button>
                 </el-form-item>
               </template>
@@ -748,21 +762,34 @@
 
               <!-- ── 模型预测节点 ── -->
               <template v-if="selectedNode.properties.nodeType === 'model-predict'">
-                <el-form-item label="选择预测数据集">
-                  <el-select
-                    v-model="selectedNode.properties.predictDatasetId"
-                    style="width:100%"
-                    placeholder="选择已上传的数据集"
-                    clearable
-                    @change="updateNodeProperty"
-                  >
-                    <el-option
-                      v-for="ds in datasets"
-                      :key="ds.id"
-                      :label="ds.name"
-                      :value="ds.files.find(f=>f.datasetServerId)?.datasetServerId"
-                    />
-                  </el-select>
+                <div style="font-size: 13px; color: #cbd5e1; margin-bottom: 16px; line-height: 1.5; padding: 10px; background: rgba(255,255,255,0.05); border-left: 3px solid #6366f1; border-radius: 4px;">
+                  <strong>格式要求：</strong>预测数据必须包含模型训练时使用的原特征列。<br/>
+                  预测本模型所需的特征列可能为：<br/>
+                  <span style="color: #60a5fa; word-break: break-all;">
+                    {{ (() => { 
+                      const trainNode = getAllUpstreamNodes(selectedNode.id).find(n => n.properties?.featureCols); 
+                      return trainNode ? trainNode.properties.featureCols.join(', ') : '等待连接含有特征记录的工作流'; 
+                    })() }}
+                  </span>
+                </div>
+                <el-form-item label="预测数据集（表格文件）">
+                  <div style="display: flex; gap: 8px; width: 100%;">
+                    <el-select
+                      v-model="selectedNode.properties.predictDatasetId"
+                      style="flex: 1"
+                      placeholder="选择已上传的数据集"
+                      clearable
+                      @change="updateNodeProperty"
+                    >
+                      <el-option
+                        v-for="ds in datasets.filter(d => d.files?.some(f => f.datasetServerId))"
+                        :key="ds.id"
+                        :label="ds.name"
+                        :value="ds.files.find(f=>f.datasetServerId)?.datasetServerId"
+                      />
+                    </el-select>
+                    <el-button type="primary" plain @click="triggerPredictUpload">上传数据</el-button>
+                  </div>
                 </el-form-item>
                 <el-form-item label="或手动输入 JSON">
                   <el-input
@@ -921,17 +948,31 @@
             </el-select>
           </el-form-item>
           <el-button type="primary" style="width:100%" :loading="isChartLoading" @click="loadChart">生成图表</el-button>
+          <div v-show="nodeState?.result?.echarts_option || isChartLoading" ref="chartDomRef" style="height: 360px; margin-top: 16px; border-radius: 8px; background: rgba(15,23,42,0.6);" v-loading="isChartLoading"></div>
         </template>
         <template v-if="selectedNode.properties.nodeType === 'model-predict'">
-          <el-form-item label="预测数据集">
-            <el-select v-model="selectedNode.properties.predictDatasetId" style="width:100%" placeholder="选择数据集" clearable @change="updateNodeProperty">
-              <el-option v-for="ds in datasets" :key="ds.id" :label="ds.name" :value="ds.files.find(f=>f.datasetServerId)?.datasetServerId" />
-            </el-select>
+          <div style="font-size: 13px; color: #cbd5e1; margin-bottom: 16px; line-height: 1.5; padding: 10px; background: rgba(255,255,255,0.05); border-left: 3px solid #6366f1; border-radius: 4px;">
+            <strong>格式要求：</strong>预测数据必须包含模型训练时使用的原特征列。<br/>
+            预测本模型所需的特征列可能为：<br/>
+            <span style="color: #60a5fa; word-break: break-all;">
+              {{ (() => { 
+                const trainNode = getAllUpstreamNodes(selectedNode.id).find(n => n.properties?.featureCols); 
+                return trainNode ? trainNode.properties.featureCols.join(', ') : '等待连接含有特征记录的工作流'; 
+              })() }}
+            </span>
+          </div>
+          <el-form-item label="预测数据集（表格文件）">
+            <div style="display: flex; gap: 8px; width: 100%;">
+              <el-select v-model="selectedNode.properties.predictDatasetId" style="flex: 1" placeholder="选择已上传的数据集" clearable @change="updateNodeProperty">
+                <el-option v-for="ds in datasets.filter(d => d.files?.some(f => f.datasetServerId))" :key="ds.id" :label="ds.name" :value="ds.files.find(f=>f.datasetServerId)?.datasetServerId" />
+              </el-select>
+              <el-button type="primary" plain @click="triggerPredictUpload">上传数据</el-button>
+            </div>
           </el-form-item>
-          <el-form-item label="或手动输入 JSON">
-            <el-input v-model="selectedNode.properties.manualInput" type="textarea" :rows="3" placeholder='[{"col1": 0.5}]' @change="updateNodeProperty" />
+          <el-form-item label="或手动输入 JSON (格式需包含上述特征)">
+            <el-input v-model="selectedNode.properties.manualInput" type="textarea" :rows="3" placeholder='[{"特征A": 0.5, "特征B": 1.2}]' @change="updateNodeProperty" />
           </el-form-item>
-          <el-button type="primary" style="width:100%" :loading="nodeState.status === 'running'" @click="runPredict">执行预测</el-button>
+          <el-button type="primary" style="width:100%" :loading="nodeState.status === 'running'" @click="runPredict">执行预测并自动保存结果</el-button>
         </template>
       </el-form>
       <template #footer>
@@ -958,7 +999,14 @@
     <!-- 模型配置弹窗（模型选择 / 具体模型节点） -->
     <el-dialog v-model="showModelConfigDialog" title="模型参数配置" width="520px" class="create-dialog" destroy-on-close>
       <el-form v-if="selectedNode" label-position="top">
-        <el-form-item v-if="selectedNode.properties.nodeType === 'model-select'" label="模型类型">
+        <template v-if="selectedNode.properties.nodeType === 'model-select'">
+          <el-form-item label="任务类型" required>
+            <el-radio-group v-model="selectedNode.properties.taskType" @change="updateNodeProperty">
+              <el-radio-button value="classification">分类任务</el-radio-button>
+              <el-radio-button value="regression">回归任务</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="模型类型" required>
           <el-select v-model="selectedNode.properties.modelType" style="width:100%">
             <template v-if="selectedNode.properties.taskType === 'classification'">
               <el-option label="逻辑回归" value="logistic_regression" />
@@ -978,7 +1026,8 @@
             </template>
           </el-select>
         </el-form-item>
-        <el-form-item v-else label="当前模型">
+        </template>
+        <el-form-item v-if="selectedNode.properties.nodeType !== 'model-select'" label="当前模型">
           <span>{{ modelTypeLabel(selectedNode.properties.modelType) }}</span>
         </el-form-item>
         <el-collapse>
@@ -1061,9 +1110,12 @@
     <el-dialog v-model="showModelPredictConfigDialog" title="配置: 模型预测" width="480px" class="create-dialog" destroy-on-close>
       <el-form v-if="selectedNode?.properties?.nodeType === 'model-predict'" label-position="top">
         <el-form-item label="选择预测数据集">
-          <el-select v-model="selectedNode.properties.predictDatasetId" style="width:100%" placeholder="请选择已上传的数据集" clearable @change="updateNodeProperty">
-            <el-option v-for="ds in datasets.filter(d => d.files?.some(f => f.datasetServerId))" :key="ds.id" :label="ds.name" :value="ds.files.find(f=>f.datasetServerId)?.datasetServerId" />
-          </el-select>
+          <div style="display: flex; gap: 8px; width: 100%;">
+            <el-select v-model="selectedNode.properties.predictDatasetId" style="flex: 1" placeholder="请选择已上传的数据集" clearable @change="updateNodeProperty">
+              <el-option v-for="ds in datasets.filter(d => d.files?.some(f => f.datasetServerId))" :key="ds.id" :label="ds.name" :value="ds.files.find(f=>f.datasetServerId)?.datasetServerId" />
+            </el-select>
+            <el-button type="primary" plain @click="triggerPredictUpload">上传数据</el-button>
+          </div>
         </el-form-item>
         <el-form-item label="或手动输入 JSON（与特征列一致）">
           <el-input v-model="selectedNode.properties.manualInput" type="textarea" :rows="4" placeholder='[{"col1": 0.5, "col2": 100}]' @change="updateNodeProperty" />
@@ -1746,6 +1798,7 @@ const datasets = ref([])
 const showFilesDialog = ref(false)
 const currentViewDataset = ref(null)
 const fileInputRef = ref(null)
+const isPredictUpload = ref(false)
 
 // 日志面板相关
 const showLogPanel = ref(false)
@@ -2471,7 +2524,7 @@ const onDrop = (e) => {
     // 按节点类型设置合理的默认属性
     if (preprocessNodeTypes.includes(nodeType)) {
       Object.assign(defaultProps, { preprocessId: nodeType, config: {} })
-    } else if (nodeType && nodeType.startsWith(MODEL_NODE_ID_PREFIX)) {
+    } else if (nodeType && nodeType.startsWith(MODEL_NODE_ID_PREFIX) && !['model-predict', 'model-train', 'model-select', 'model-eval'].includes(nodeType)) {
       const modelType = nodeType.slice(MODEL_NODE_ID_PREFIX.length)
       Object.assign(defaultProps, {
         nodeType: 'model-concrete',
@@ -3017,6 +3070,12 @@ const triggerFileUpload = () => {
   fileInputRef.value?.click()
 }
 
+// 触发预测数据上传
+const triggerPredictUpload = () => {
+  isPredictUpload.value = true
+  fileInputRef.value?.click()
+}
+
 // 处理本地文件选择 - 立即上传到后端 ML 服务
 const handleLocalFileSelect = async (e) => {
   const files = e.target.files
@@ -3083,10 +3142,21 @@ const handleLocalFileSelect = async (e) => {
   const successCount = uploadedFiles.filter(f => !f.error).length
   if (successCount > 0) {
     ElMessage.success(`成功上传 ${successCount} 个文件`)
+    
+    // 如果是预测数据上传模式，自动选择刚上传的数据集
+    if (isPredictUpload.value && selectedNode.value?.properties?.nodeType === 'model-predict') {
+      const serverId = uploadedFiles.find(f => f.datasetServerId)?.datasetServerId
+      if (serverId) {
+        selectedNode.value.properties.predictDatasetId = serverId
+        updateNodeProperty()
+        ElMessage.success('已自动选择上传的预测数据集')
+      }
+    }
   } else {
     ElMessage.error('所有文件上传失败，请检查后端服务')
   }
 
+  isPredictUpload.value = false
   e.target.value = ''
 }
 
@@ -3439,7 +3509,7 @@ const runTraining = async () => {
   const modelSelectNode = upstreams.find(n => n.properties?.nodeType === 'model-select')
   const modelConcreteNode = upstreams.find(n => n.properties?.nodeType === 'model-concrete')
 
-  let taskType = featureSelectNode?.properties?.taskType || columnSelectNode?.properties?.taskType || taskTypeNode?.properties?.taskType || 'classification'
+  let taskType = modelSelectNode?.properties?.taskType || modelConcreteNode?.properties?.taskType || featureSelectNode?.properties?.taskType || columnSelectNode?.properties?.taskType || taskTypeNode?.properties?.taskType || 'classification'
   let targetCol = featureSelectNode?.properties?.targetCol || columnSelectNode?.properties?.targetCol || targetColNode?.properties?.targetCol
   let featureCols = featureSelectNode?.properties?.featureCols || columnSelectNode?.properties?.featureCols || featureColsNode?.properties?.featureCols
   if (!targetCol || !featureCols?.length) {
@@ -3505,14 +3575,14 @@ const runTraining = async () => {
   // 从上游「随机森林/模型选择」节点读取最新配置（与画布一致），改参数后无需重新拖节点
   const props = modelConcreteNode?.properties || modelSelectNode?.properties || selectedNode.value.properties
   if (props.kernel != null) hyperparams.kernel = props.kernel
-  if (props.nEstimators != null) hyperparams.n_estimators = props.nEstimators
-  if (props.maxDepth != null) hyperparams.max_depth = props.maxDepth
-  if (props.minSamplesLeaf != null) hyperparams.min_samples_leaf = props.minSamplesLeaf
-  if (props.C != null) hyperparams.C = props.C
-  if (props.alpha != null) hyperparams.alpha = props.alpha
-  if (props.nNeighbors != null) hyperparams.n_neighbors = props.nNeighbors
-  if (props.learningRate != null) hyperparams.learning_rate = props.learningRate
-  if (props.maxIter != null) hyperparams.max_iter = props.maxIter
+  if (props.nEstimators != null) hyperparams.n_estimators = Number(props.nEstimators)
+  if (props.maxDepth != null) hyperparams.max_depth = Number(props.maxDepth)
+  if (props.minSamplesLeaf != null) hyperparams.min_samples_leaf = Number(props.minSamplesLeaf)
+  if (props.C != null) hyperparams.C = Number(props.C)
+  if (props.alpha != null) hyperparams.alpha = Number(props.alpha)
+  if (props.nNeighbors != null) hyperparams.n_neighbors = Number(props.nNeighbors)
+  if (props.learningRate != null) hyperparams.learning_rate = Number(props.learningRate)
+  if (props.maxIter != null) hyperparams.max_iter = Number(props.maxIter)
 
   try {
     const res = await mlApi.train({

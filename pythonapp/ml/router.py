@@ -26,6 +26,31 @@ from .models import SelectFeaturesRequest, TrainRequest, PredictRequest, Preproc
 router = APIRouter(prefix="/ml", tags=["ML Pipeline"])
 
 
+def _sanitize_for_json(obj):
+    """Replace NaN/Inf values with None so JSON serialization works."""
+    import math
+    if isinstance(obj, list):
+        return [_sanitize_for_json(v) for v in obj]
+    elif isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
+    elif isinstance(obj, (np.floating,)) and (np.isnan(obj) or np.isinf(obj)):
+        return None
+    elif isinstance(obj, (np.integer,)):
+        return int(obj)
+    elif isinstance(obj, (np.floating,)):
+        return float(obj)
+    return obj
+
+
+def _df_to_records(df, limit=None):
+    """Convert a DataFrame to a JSON-safe list of dicts."""
+    sub = df.head(limit) if limit else df
+    records = sub.where(sub.notna(), None).to_dict("records")
+    return _sanitize_for_json(records)
+
+
 # ── Dataset Management ────────────────────────────────────────────────────────
 
 
@@ -55,7 +80,7 @@ async def upload_dataset(
         "row_count": len(df),
         "col_count": len(df.columns),
         "columns": columns,
-        "preview": df.head(5).to_dict("records"),
+        "preview": _df_to_records(df, 5),
     }
 
 
@@ -76,7 +101,7 @@ async def get_dataset_preview(
         df = load_dataset(x_session_id, dataset_id)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="数据集不存在")
-    rows = df.head(limit).to_dict("records")
+    rows = _df_to_records(df, limit)
     columns = [{"name": c, "dtype": str(df[c].dtype)} for c in df.columns]
     return {
         "row_count": len(df),
@@ -946,9 +971,18 @@ def _get_model(task_type: str, model_type: str, hp: dict):
     from sklearn.tree import DecisionTreeClassifier
     from sklearn.neighbors import KNeighborsClassifier
 
-    rs = hp.get("random_state", 42)
+    def get_int(key, default):
+        val = hp.get(key)
+        if val is None or val == "": return default
+        return int(val)
 
-    max_iter = hp.get("max_iter", 2000)
+    def get_float(key, default):
+        val = hp.get(key)
+        if val is None or val == "": return default
+        return float(val)
+
+    rs = get_int("random_state", 42) if hp.get("random_state") is not None else None
+    max_iter = get_int("max_iter", 2000)
 
     if task_type == "classification":
         mapping = {
@@ -956,48 +990,48 @@ def _get_model(task_type: str, model_type: str, hp: dict):
                 max_iter=max_iter, random_state=rs,
             ),
             "random_forest": lambda: RandomForestClassifier(
-                n_estimators=hp.get("n_estimators", 100),
-                max_depth=hp.get("max_depth", 10),
-                min_samples_leaf=hp.get("min_samples_leaf", 3),
+                n_estimators=get_int("n_estimators", 100),
+                max_depth=get_int("max_depth", 10) if hp.get("max_depth") else None,
+                min_samples_leaf=get_int("min_samples_leaf", 3),
                 random_state=rs,
                 class_weight=hp.get("class_weight"),
             ),
             "svm": lambda: SVC(
-                C=hp.get("C", 1.0), kernel=hp.get("kernel", "rbf"),
+                C=get_float("C", 1.0), kernel=hp.get("kernel", "rbf"),
                 max_iter=max_iter, probability=True, random_state=rs,
             ),
             "decision_tree": lambda: DecisionTreeClassifier(
-                max_depth=hp.get("max_depth", 8),
-                min_samples_leaf=hp.get("min_samples_leaf", 3),
+                max_depth=get_int("max_depth", 8) if hp.get("max_depth") else None,
+                min_samples_leaf=get_int("min_samples_leaf", 3),
                 random_state=rs,
             ),
             "gradient_boosting": lambda: GradientBoostingClassifier(
-                n_estimators=hp.get("n_estimators", 100),
-                learning_rate=hp.get("learning_rate", 0.1),
-                max_depth=hp.get("max_depth", 3),
+                n_estimators=get_int("n_estimators", 100),
+                learning_rate=get_float("learning_rate", 0.1),
+                max_depth=get_int("max_depth", 3) if hp.get("max_depth") else None,
                 random_state=rs,
             ),
-            "knn": lambda: KNeighborsClassifier(n_neighbors=hp.get("n_neighbors", 5)),
+            "knn": lambda: KNeighborsClassifier(n_neighbors=get_int("n_neighbors", 5)),
         }
     else:
         mapping = {
             "linear_regression": lambda: LinearRegression(),
-            "ridge": lambda: Ridge(alpha=hp.get("alpha", 1.0)),
-            "lasso": lambda: Lasso(alpha=hp.get("alpha", 1.0)),
+            "ridge": lambda: Ridge(alpha=get_float("alpha", 1.0)),
+            "lasso": lambda: Lasso(alpha=get_float("alpha", 1.0)),
             "random_forest": lambda: RandomForestRegressor(
-                n_estimators=hp.get("n_estimators", 100),
-                max_depth=hp.get("max_depth", 10),
-                min_samples_leaf=hp.get("min_samples_leaf", 3),
+                n_estimators=get_int("n_estimators", 100),
+                max_depth=get_int("max_depth", 10) if hp.get("max_depth") else None,
+                min_samples_leaf=get_int("min_samples_leaf", 3),
                 random_state=rs,
             ),
             "svr": lambda: SVR(
-                C=hp.get("C", 1.0), kernel=hp.get("kernel", "rbf"),
+                C=get_float("C", 1.0), kernel=hp.get("kernel", "rbf"),
                 max_iter=max_iter,
             ),
             "gradient_boosting": lambda: GradientBoostingRegressor(
-                n_estimators=hp.get("n_estimators", 100),
-                learning_rate=hp.get("learning_rate", 0.1),
-                max_depth=hp.get("max_depth", 3),
+                n_estimators=get_int("n_estimators", 100),
+                learning_rate=get_float("learning_rate", 0.1),
+                max_depth=get_int("max_depth", 3) if hp.get("max_depth") else None,
                 random_state=rs,
             ),
         }
@@ -1048,10 +1082,20 @@ async def train_model(
     # random_state 为 None 时每次划分不同，否则固定种子（如 42）导致相同数据得到相同准确率
     random_state = hp.get("random_state") if "random_state" in hp else 42
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=random_state,
-        stratify=y if req.task_type == "classification" else None,
-    )
+    try:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, random_state=random_state,
+            stratify=y if req.task_type == "classification" else None,
+        )
+    except ValueError as e:
+        if req.task_type == "classification" and "The least populated class" in str(e) or "Classes with too few members" in str(e):
+            logger.warning("Stratified split failed due to too few samples per class. Falling back to unstratified split.")
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=test_size, random_state=random_state,
+                stratify=None,
+            )
+        else:
+            raise HTTPException(status_code=400, detail=f"数据拆分失败: {str(e)}")
 
     scaler = None
     if hp.get("scale_features", True):
@@ -1227,7 +1271,29 @@ async def predict(
         X = scaler.transform(X)
 
     predictions = model.predict(X).tolist()
-    return {"predictions": predictions, "count": len(predictions)}
+    
+    # 结合原始数据并生成新的数据集ID
+    if isinstance(predictions[0], float):
+        df["prediction"] = [round(p, 4) for p in predictions]
+    else:
+        df["prediction"] = predictions
+        
+    predict_dataset_id = ""
+    if req.dataset_id:
+        predict_dataset_id = save_dataset(x_session_id, df)
+        
+    # 处理NaN以便于JSON序列化
+    df_preview = df.head(100).fillna("")
+    preview = df_preview.to_dict("records")
+    columns_out = [{"key": str(c), "label": str(c)} for c in df.columns]
+
+    return {
+        "predictions": predictions, 
+        "count": len(predictions),
+        "predict_dataset_id": predict_dataset_id,
+        "preview": preview,
+        "columns": columns_out
+    }
 
 
 # ── Visualization ─────────────────────────────────────────────────────────────
