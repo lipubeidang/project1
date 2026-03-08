@@ -32,6 +32,9 @@ export const mlApi = {
   listDatasets() {
     return client.get('/ml/datasets')
   },
+  getDatasetPreview(datasetId, limit = 500) {
+    return client.get(`/ml/datasets/${datasetId}/preview`, { params: { limit } })
+  },
   deleteDataset(datasetId) {
     return client.delete(`/ml/datasets/${datasetId}`)
   },

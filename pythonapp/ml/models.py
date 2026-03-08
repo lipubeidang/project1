@@ -9,6 +9,7 @@ from typing import Optional, List, Any, Dict
 class PreprocessRequest(BaseModel):
     dataset_id: str
     preprocess_steps: List[Dict[str, Any]] = []
+    target_col: Optional[str] = None  # 可选，分组/聚合等步骤若需要可传入
 
 class SelectFeaturesRequest(BaseModel):
     dataset_id: str

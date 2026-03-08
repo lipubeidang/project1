@@ -6,6 +6,9 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Header
 from typing import Optional
 import uuid
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 import numpy as np
 import pandas as pd
 
@@ -62,6 +65,26 @@ async def get_datasets(x_session_id: str = Header(...)):
     return list_datasets(x_session_id)
 
 
+@router.get("/datasets/{dataset_id}/preview")
+async def get_dataset_preview(
+    dataset_id: str,
+    x_session_id: str = Header(...),
+    limit: int = 500,
+):
+    """返回数据集的预览行，供表格浏览器使用。"""
+    try:
+        df = load_dataset(x_session_id, dataset_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="数据集不存在")
+    rows = df.head(limit).to_dict("records")
+    columns = [{"name": c, "dtype": str(df[c].dtype)} for c in df.columns]
+    return {
+        "row_count": len(df),
+        "columns": columns,
+        "preview": rows,
+    }
+
+
 @router.delete("/datasets/{dataset_id}")
 async def delete_dataset_endpoint(
     dataset_id: str,
@@ -99,6 +122,7 @@ async def preprocess_data(
         raise HTTPException(status_code=404, detail="数据集不存在")
 
     warnings = []
+    target_col = getattr(req, "target_col", None)  # 可选，仅分组/聚合时用于保留目标列
     
     for step in req.preprocess_steps:
         if step["id"] == "group_by_column":
@@ -120,11 +144,9 @@ async def preprocess_data(
             try:
                 # 构建聚合字典
                 agg_dict = {col: aggregate_function for col in aggregate_columns}
-                # 如果目标列不在分组列或聚合列中，需要保留目标列
-                target_col = req.target_col
+                # 如果提供了目标列且不在分组/聚合列中，则保留目标列（用于预览）
                 target_col_added = False
-                if target_col not in group_columns and target_col not in aggregate_columns:
-                    # 对目标列使用平均值聚合
+                if target_col and str(target_col) in df.columns and target_col not in group_columns and target_col not in aggregate_columns:
                     agg_dict[target_col] = "mean"
                     target_col_added = True
                 # 确保至少有一个聚合列
@@ -170,8 +192,7 @@ async def preprocess_data(
                 # 如果目标列不在统计列中，需要保留目标列
                 target_col = req.target_col
                 target_col_added = False
-                if target_col not in stats_columns and target_col not in group_columns:
-                    # 对目标列使用平均值聚合
+                if target_col and str(target_col) in df.columns and target_col not in stats_columns and target_col not in group_columns:
                     agg_dict[target_col] = ["mean"]
                     target_col_added = True
                 
@@ -474,13 +495,14 @@ async def preprocess_data(
     # Save preprocessed dataset
     dataset_id = save_dataset(x_session_id, df)
     columns = [{"name": c, "dtype": str(df[c].dtype)} for c in df.columns]
+    preview_limit = 200
 
     return {
         "dataset_id": dataset_id,
         "row_count": len(df),
         "col_count": len(df.columns),
         "columns": columns,
-        "preview": df.head(5).to_dict("records"),
+        "preview": df.head(preview_limit).to_dict("records"),
         "warnings": warnings
     }
 
@@ -568,8 +590,7 @@ async def select_features(
                 # 如果目标列不在统计列中，需要保留目标列
                 target_col = req.target_col
                 target_col_added = False
-                if target_col not in stats_columns and target_col not in group_columns:
-                    # 对目标列使用平均值聚合
+                if target_col and str(target_col) in df.columns and target_col not in stats_columns and target_col not in group_columns:
                     agg_dict[target_col] = ["mean"]
                     target_col_added = True
                 
@@ -927,9 +948,13 @@ def _get_model(task_type: str, model_type: str, hp: dict):
 
     rs = hp.get("random_state", 42)
 
+    max_iter = hp.get("max_iter", 2000)
+
     if task_type == "classification":
         mapping = {
-            "logistic_regression": lambda: LogisticRegression(max_iter=1000, random_state=rs),
+            "logistic_regression": lambda: LogisticRegression(
+                max_iter=max_iter, random_state=rs,
+            ),
             "random_forest": lambda: RandomForestClassifier(
                 n_estimators=hp.get("n_estimators", 100),
                 max_depth=hp.get("max_depth", 10),
@@ -937,7 +962,10 @@ def _get_model(task_type: str, model_type: str, hp: dict):
                 random_state=rs,
                 class_weight=hp.get("class_weight"),
             ),
-            "svm": lambda: SVC(C=hp.get("C", 1.0), probability=True, random_state=rs),
+            "svm": lambda: SVC(
+                C=hp.get("C", 1.0), kernel=hp.get("kernel", "rbf"),
+                max_iter=max_iter, probability=True, random_state=rs,
+            ),
             "decision_tree": lambda: DecisionTreeClassifier(
                 max_depth=hp.get("max_depth", 8),
                 min_samples_leaf=hp.get("min_samples_leaf", 3),
@@ -962,9 +990,10 @@ def _get_model(task_type: str, model_type: str, hp: dict):
                 min_samples_leaf=hp.get("min_samples_leaf", 3),
                 random_state=rs,
             ),
-            "svr": lambda: SVR(C=hp.get("C", 1.0), kernel=hp.get("kernel", "rbf")),
-            "svm": lambda: SVC(C=hp.get("C", 1.0), probability=True, random_state=rs, kernel=hp.get("kernel", "rbf")),
-
+            "svr": lambda: SVR(
+                C=hp.get("C", 1.0), kernel=hp.get("kernel", "rbf"),
+                max_iter=max_iter,
+            ),
             "gradient_boosting": lambda: GradientBoostingRegressor(
                 n_estimators=hp.get("n_estimators", 100),
                 learning_rate=hp.get("learning_rate", 0.1),
@@ -989,6 +1018,8 @@ async def train_model(
     from sklearn.metrics import (
         accuracy_score,
         f1_score,
+        precision_score,
+        recall_score,
         r2_score,
         mean_squared_error,
         mean_absolute_error,
@@ -1014,7 +1045,8 @@ async def train_model(
 
     hp = req.hyperparams
     test_size = hp.get("test_size", 0.2)
-    random_state = hp.get("random_state", 42)
+    # random_state 为 None 时每次划分不同，否则固定种子（如 42）导致相同数据得到相同准确率
+    random_state = hp.get("random_state") if "random_state" in hp else 42
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state,
@@ -1032,9 +1064,15 @@ async def train_model(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    n_samples, n_features = X_train.shape
+    logger.info(
+        "Training model: task=%s model=%s samples=%d features=%d hyperparams=%s",
+        req.task_type, req.model_type, n_samples, n_features, hp,
+    )
     start = time.time()
     model.fit(X_train, y_train)
     training_time = time.time() - start
+    logger.info("Training completed in %.3fs", training_time)
 
     y_train_pred = model.predict(X_train)
     y_test_pred = model.predict(X_test)
@@ -1050,11 +1088,23 @@ async def train_model(
             "f1_weighted": round(
                 float(f1_score(y_train, y_train_pred, average="weighted", zero_division=0)), 4
             ),
+            "precision_weighted": round(
+                float(precision_score(y_train, y_train_pred, average="weighted", zero_division=0)), 4
+            ),
+            "recall_weighted": round(
+                float(recall_score(y_train, y_train_pred, average="weighted", zero_division=0)), 4
+            ),
         }
         test_metrics = {
             "accuracy": round(float(accuracy_score(y_test, y_test_pred)), 4),
             "f1_weighted": round(
                 float(f1_score(y_test, y_test_pred, average="weighted", zero_division=0)), 4
+            ),
+            "precision_weighted": round(
+                float(precision_score(y_test, y_test_pred, average="weighted", zero_division=0)), 4
+            ),
+            "recall_weighted": round(
+                float(recall_score(y_test, y_test_pred, average="weighted", zero_division=0)), 4
             ),
         }
     else:

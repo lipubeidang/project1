@@ -73,31 +73,46 @@ def process_tables(tables: List[pd.DataFrame]) -> Dict:
 
 
 def parse_file(filename: str, content: bytes) -> List[pd.DataFrame]:
-    """根据文件类型解析文件，返回DataFrame列表"""
+    """根据文件类型解析文件，返回 DataFrame 列表。支持 CSV、Excel(xls/xlsx)、TXT、JSON 等"""
     filename_lower = filename.lower()
-    
+    buf = io.BytesIO(content)
+
     # CSV
     if filename_lower.endswith('.csv'):
-        return [pd.read_csv(io.BytesIO(content))]
-    
-    # Excel (xlsx, xls)
-    elif filename_lower.endswith(('.xlsx', '.xls')):
-        excel_file = pd.ExcelFile(io.BytesIO(content))
-        # 读取所有sheet
+        return [pd.read_csv(buf)]
+
+    # Excel: .xls 用 xlrd，.xlsx 用 openpyxl
+    if filename_lower.endswith('.xlsx'):
+        excel_file = pd.ExcelFile(buf, engine='openpyxl')
         return [pd.read_excel(excel_file, sheet_name=sheet) for sheet in excel_file.sheet_names]
-    
-    # TXT (假设是制表符或逗号分隔)
-    elif filename_lower.endswith('.txt'):
-        text = content.decode('utf-8')
-        # 尝试检测分隔符
-        if '\t' in text:
+    if filename_lower.endswith('.xls'):
+        excel_file = pd.ExcelFile(buf, engine='xlrd')
+        return [pd.read_excel(excel_file, sheet_name=sheet) for sheet in excel_file.sheet_names]
+
+    # TXT（制表符或逗号分隔）
+    if filename_lower.endswith('.txt'):
+        text = content.decode('utf-8', errors='replace')
+        if '\t' in text.split('\n')[0]:
             return [pd.read_csv(io.BytesIO(content), sep='\t')]
-        else:
-            return [pd.read_csv(io.BytesIO(content))]
-    
-    # JSON
-    elif filename_lower.endswith('.json'):
-        return [pd.read_json(io.BytesIO(content))]
+        return [pd.read_csv(io.BytesIO(content))]
+
+    # JSON（支持数组或键值结构）
+    if filename_lower.endswith('.json'):
+        try:
+            return [pd.read_json(buf)]
+        except Exception:
+            buf.seek(0)
+            try:
+                return [pd.read_json(buf, orient='records')]
+            except Exception:
+                buf.seek(0)
+                import json
+                data = json.load(buf)
+                if isinstance(data, list):
+                    return [pd.DataFrame(data)]
+                if isinstance(data, dict):
+                    return [pd.DataFrame([data])]
+                return [pd.DataFrame({'data': [str(data)]})]
     
     # Word (docx) - 提取表格
     elif filename_lower.endswith('.docx'):
